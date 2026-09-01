@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>J.A.R.V.I.S. · Mark 85</title>
+<meta name="theme-color" content="#120806">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#120806;
+    --bg-panel:#1c0f0a;
+    --bg-panel-2:#241309;
+    --line:#4a2410;
+    --accent:#ff3227;
+    --accent-dim:#7a1810;
+    --accent-2:#ffc72c;
+    --accent-3:#ffdb70;
+    --danger:#ff073a;
+    --text:#ffe9c7;
+    --text-dim:#a67856;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #2a1006 0%, var(--bg) 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Rajdhani',sans-serif;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .frame{
+    width:100%;
+    max-width:520px;
+    height:100vh;
+    height:100dvh; /* su Android/Chrome evita il "salto" quando appare/scompare la barra indirizzi */
+    max-height:900px;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    padding:calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+  }
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    font-family:'Orbitron',sans-serif;
+    font-weight:900;
+    letter-spacing:4px;
+    font-size:15px;
+    color:var(--accent);
+    text-shadow:0 0 12px rgba(255,50,39,.5);
+  }
+  .brand small{
+    display:block;
+    font-family:'Rajdhani',sans-serif;
+    font-weight:500;
+    letter-spacing:2px;
+    font-size:10px;
+    color:var(--text-dim);
+    margin-top:2px;
+  }
+  .head-right{display:flex; align-items:center; gap:10px;}
+  .mk-badge{
+    font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:1.5px;
+    color:var(--accent-2); border:1px solid var(--accent-2); border-radius:4px;
+    padding:4px 6px; opacity:.8;
+  }
+  .status-pill{
+    font-family:'Orbitron',sans-serif;
+    font-size:10px;
+    letter-spacing:2px;
+    padding:6px 10px;
+    border-radius:20px;
+    border:1px solid var(--accent-dim);
+    color:var(--accent);
+    transition:all .3s ease;
+    white-space:nowrap;
+  }
+  .status-pill.thinking{border-color:var(--accent-3); color:var(--accent-3);}
+  .status-pill.speaking{border-color:var(--accent-2); color:var(--accent-2);}
+  .status-pill.error{border-color:var(--danger); color:var(--danger);}
+  .gear{
+    width:34px;height:34px;border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--bg-panel);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer; color:var(--text-dim);
+    transition:all .2s;
+  }
+  .gear:hover{color:var(--accent); border-color:var(--accent-dim);}
+  .gear svg{width:16px;height:16px;}
+
+  /* ---------- core ---------- */
+  .core-wrap{
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    padding:26px 0 10px;
+  }
+  #coreSvg{width:230px; height:230px; overflow:visible;}
+  .ring{fill:none; stroke:var(--accent); opacity:.55;}
+  .ring-outer{stroke-width:1;}
+  .ring-mid{stroke-width:1.4; stroke-dasharray:2 6;}
+  .core-disc{fill:url(#coreGrad); transition:filter .3s ease;}
+  .bar{fill:var(--accent); transform-origin:center;}
+  .plate-tick{stroke:var(--accent-dim); stroke-width:1; opacity:.6;}
+  .plate-tick.major{stroke:var(--accent-2); stroke-width:1.4; opacity:.85;}
+  #coreSvg.thinking .core-disc{filter:hue-rotate(40deg) saturate(1.2);}
+  #coreSvg.speaking .core-disc{filter:hue-rotate(15deg) saturate(1.5) brightness(1.1);}
+  #coreSvg.error .core-disc{filter:hue-rotate(-40deg) saturate(1.8) brightness(.85);}
+  .spin-slow{animation:spin 18s linear infinite;}
+  .spin-rev{animation:spin 26s linear infinite reverse;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .pulse{animation:pulse 2.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:.8;}}
+
+  .core-label{
+    text-align:center; font-family:'Orbitron',sans-serif;
+    font-size:11px; letter-spacing:3px; color:var(--text-dim);
+    margin-top:-6px; height:16px;
+  }
+
+  /* ---------- transcript ---------- */
+  .log{
+    flex:1 1 auto;
+    overflow-y:auto;
+    margin:10px 0;
+    padding:14px;
+    background:linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2));
+    border:1px solid var(--line);
+    border-radius:10px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .log::-webkit-scrollbar{width:6px;}
+  .log::-webkit-scrollbar-thumb{background:var(--accent-dim); border-radius:3px;}
+  .log-empty{
+    margin:auto; text-align:center; color:var(--text-dim);
+    font-size:14px; letter-spacing:.5px; max-width:280px; line-height:1.5;
+  }
+  .msg{max-width:88%; font-size:15px; line-height:1.4;}
+  .msg .who{
+    font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:2px;
+    margin-bottom:3px; display:block;
+  }
+  .msg.user{align-self:flex-end; text-align:right;}
+  .msg.user .who{color:var(--text-dim);}
+  .msg.user .bubble{background:#2a140c; border:1px solid var(--line); border-radius:10px 10px 2px 10px; padding:8px 12px; display:inline-block;}
+  .msg.ai{align-self:flex-start;}
+  .msg.ai .who{color:var(--accent);}
+  .msg.ai .bubble{background:rgba(255,50,39,.08); border:1px solid var(--accent-dim); border-radius:10px 10px 10px 2px; padding:8px 12px; display:inline-block;}
+  .msg.sys .bubble{color:var(--text-dim); font-style:italic; font-size:13px;}
+
+  /* ---------- controls ---------- */
+  .controls{
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    padding-top:4px;
+  }
+  .mic-btn{
+    width:64px;height:64px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #3a160c, var(--bg-panel));
+    border:1px solid var(--accent-dim);
+    color:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer; position:relative;
+    transition:all .2s;
+  }
+  .mic-btn svg{width:24px;height:24px;}
+  .mic-btn.on{
+    border-color:var(--accent); box-shadow:0 0 22px rgba(255,50,39,.5);
+    color:#1a0500; background:var(--accent);
+  }
+  .mic-btn.on::after{
+    content:''; position:absolute; inset:-6px; border-radius:50%;
+    border:1px solid var(--accent); opacity:.5; animation:ripple 1.6s ease-out infinite;
+  }
+  @keyframes ripple{0%{transform:scale(.9); opacity:.6;}100%{transform:scale(1.4); opacity:0;}}
+  .mode-label{
+    font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1.5px;
+    color:var(--text-dim); text-align:center; max-width:130px; line-height:1.6;
+  }
+  .mode-label b{color:var(--accent); display:block; font-size:11px;}
+
+  /* ---------- input testuale di fallback (browser senza Web Speech API) ---------- */
+  .text-fallback{
+    display:flex; align-items:center; gap:10px; margin-top:12px;
+  }
+  .text-fallback input{
+    flex:1; background:var(--bg-panel); border:1px solid var(--line);
+    color:var(--text); border-radius:20px; padding:10px 16px;
+    font-family:'Rajdhani',sans-serif; font-size:14px; outline:none;
+  }
+  .text-fallback input:focus{border-color:var(--accent-dim);}
+  .send-btn{
+    width:38px;height:38px;border-radius:50%; flex-shrink:0;
+    background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .send-btn svg{width:17px;height:17px;}
+
+  /* ---------- settings drawer ---------- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(10,3,2,.65);
+    opacity:0; pointer-events:none; transition:opacity .25s; z-index:5;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:absolute; top:0; right:0; height:100%; width:86%; max-width:340px;
+    background:#150a06; border-left:1px solid var(--line);
+    transform:translateX(100%); transition:transform .3s ease; z-index:6;
+    padding:20px 18px; overflow-y:auto;
+  }
+  .drawer.show{transform:translateX(0);}
+  .drawer h2{
+    font-family:'Orbitron',sans-serif; font-size:14px; letter-spacing:2px;
+    color:var(--accent); margin:0 0 18px;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13px; letter-spacing:.5px; color:var(--text-dim); margin-bottom:6px;
+  }
+  .field input[type=text], .field select, .field textarea{
+    width:100%; background:var(--bg-panel); border:1px solid var(--line);
+    color:var(--text); border-radius:6px; padding:9px 10px; font-family:'Rajdhani',sans-serif;
+    font-size:14px;
+  }
+  .field textarea{min-height:70px; resize:vertical;}
+  .field input[type=range]{width:100%;}
+  .switch{
+    width:40px;height:22px;border-radius:11px;background:var(--bg-panel);
+    border:1px solid var(--line); position:relative; cursor:pointer; flex-shrink:0;
+  }
+  .switch::after{
+    content:''; position:absolute; top:2px; left:2px; width:16px;height:16px;border-radius:50%;
+    background:var(--text-dim); transition:all .2s;
+  }
+  .switch.on{border-color:var(--accent);}
+  .switch.on::after{left:20px; background:var(--accent);}
+  .hint{font-size:11px; color:var(--text-dim); line-height:1.5; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+  .close-drawer{
+    position:absolute; top:16px; right:16px; width:28px;height:28px; border-radius:50%;
+    border:1px solid var(--line); background:var(--bg-panel); color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <header>
+    <div class="brand">J.A.R.V.I.S.<small>MARK 85 · VOICE INTERFACE</small></div>
+    <div class="head-right">
+      <div class="mk-badge">MK·85</div>
+      <div class="status-pill" id="statusPill">INATTIVO</div>
+      <div class="gear" id="gearBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <div class="core-wrap">
+    <svg id="coreSvg" viewBox="0 0 200 200">
+      <defs>
+        <radialGradient id="coreGrad" cx="50%" cy="45%" r="60%">
+          <stop offset="0%" stop-color="#ffe28a"/>
+          <stop offset="35%" stop-color="#ff3227"/>
+          <stop offset="100%" stop-color="#4a0d05"/>
+        </radialGradient>
+      </defs>
+      <g class="spin-rev">
+        <circle class="ring ring-outer" cx="100" cy="100" r="94"/>
+      </g>
+      <g class="spin-slow">
+        <circle class="ring ring-mid" cx="100" cy="100" r="80"/>
+      </g>
+      <g id="tickGroup"></g>
+      <g id="barGroup"></g>
+      <circle class="core-disc pulse" cx="100" cy="100" r="46"/>
+    </svg>
+  </div>
+  <div class="core-label" id="coreLabel">dì "Jarvis" per iniziare</div>
+
+  <div class="log" id="log">
+    <div class="log-empty" id="logEmpty">Il registro della conversazione comparirà qui.<br>Premi il microfono oppure attiva l'ascolto continuo dalle impostazioni.</div>
+  </div>
+
+  <div class="controls">
+    <div class="mode-label" id="modeLabel"><b>MANUALE</b>tocca per parlare</div>
+    <div class="mic-btn" id="micBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+    </div>
+    <div style="width:130px"></div>
+  </div>
+
+  <div class="text-fallback" id="textFallback">
+    <input type="text" id="textInput" placeholder="Scrivi un messaggio…" autocomplete="off">
+    <div class="send-btn" id="sendBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="drawer" id="drawer">
+    <div class="close-drawer" id="closeDrawer">✕</div>
+    <h2>IMPOSTAZIONI</h2>
+
+    <div class="field">
+      <label>Ascolto sempre attivo <div class="switch" id="swAlways"></div></label>
+    </div>
+    <div class="field">
+      <label>Richiede parola d'attivazione <div class="switch" id="swWake"></div></label>
+    </div>
+    <div class="field">
+      <label>Parola d'attivazione</label>
+      <input type="text" id="wakeWord" value="jarvis">
+    </div>
+    <div class="field">
+      <label>Lingua riconoscimento</label>
+      <select id="langSel">
+        <option value="it-IT">Italiano</option>
+        <option value="en-US">English (US)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Voce di risposta</label>
+      <select id="voiceSel"></select>
+    </div>
+    <div class="field">
+      <label>Personalità / istruzioni</label>
+      <textarea id="personality">Sei J.A.R.V.I.S., l'assistente vocale personale dell'utente. Rispondi sempre in italiano, in modo colloquiale, con un tocco di arguzia british-butler ma senza esagerare. Sii conciso: 1-3 frasi, salvo quando l'utente chiede esplicitamente più dettagli.</textarea>
+    </div>
+    <div class="field">
+      <label>Groq API key</label>
+      <input type="text" id="groqKey" placeholder="gsk_...">
+    </div>
+    <div class="field">
+      <label>Modello Groq</label>
+      <select id="groqModel">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B (versatile)</option>
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B (istantaneo)</option>
+        <option value="gemma2-9b-it">Gemma2 9B</option>
+      </select>
+    </div>
+
+    <div class="hint">
+      Il riconoscimento vocale usa la Web Speech API del browser (gratuita, funziona meglio su Chrome/Edge sia desktop che Android). Le risposte vengono generate chiamando l'API di Groq: inserisci qui la tua chiave (creala gratis su console.groq.com). La chiave resta salvata sul dispositivo (localStorage del browser) e viene inviata solo alle API di Groq.<br><br>
+      <b>Su Android:</b> ospita questi file (index.html, manifest.json, sw.js, icon-192.png, icon-512.png) su un sito HTTPS (es. GitHub Pages), apri il sito in Chrome e scegli "Aggiungi a schermata Home". Una volta installata, l'app si apre a schermo intero come una vera app, il permesso microfono resta valido stabilmente e la chiave API non si perde più tra un avvio e l'altro.<br><br>
+      <b>Browser senza riconoscimento vocale</b> (es. Samsung Internet, Firefox Android): usa il campo di testo in basso per scrivere a JARVIS, la risposta vocale funziona comunque.<br><br>
+      In ascolto continuo, l'app richiede il "wake lock" per evitare che lo schermo si spenga durante l'attesa della parola d'attivazione.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const statusPill = $('statusPill'), coreSvg = $('coreSvg'), coreLabel = $('coreLabel');
+  const micBtn = $('micBtn'), modeLabel = $('modeLabel'), logEl = $('log'), logEmpty = $('logEmpty');
+  const gearBtn = $('gearBtn'), closeDrawer = $('closeDrawer'), overlay = $('overlay'), drawer = $('drawer');
+  const swAlways = $('swAlways'), swWake = $('swWake'), wakeWordInput = $('wakeWord'), langSel = $('langSel');
+  const voiceSel = $('voiceSel'), personalityBox = $('personality'), barGroup = $('barGroup');
+  const groqKeyInput = $('groqKey'), groqModelSel = $('groqModel');
+  const textFallback = $('textFallback'), textInput = $('textInput'), sendBtn = $('sendBtn');
+
+  let settings = {
+    alwaysOn:false, wakeRequired:true, wakeWord:'jarvis',
+    lang:'it-IT', voiceURI:null, personality: personalityBox.value,
+    groqApiKey:'', groqModel:'llama-3.3-70b-versatile'
+  };
+
+  // ---------- persistence (localStorage: funziona su qualsiasi browser/dispositivo, PC e Android) ----------
+  async function loadSettings(){
+    try{
+      const raw = localStorage.getItem('jarvis-settings');
+      if(raw){
+        const s = JSON.parse(raw);
+        settings = Object.assign(settings, s);
+      }
+    }catch(e){ /* nessuna impostazione salvata ancora, o storage non disponibile */ }
+    applySettingsToUI();
+  }
+  async function saveSettings(){
+    try{ localStorage.setItem('jarvis-settings', JSON.stringify(settings)); }catch(e){}
+  }
+  function applySettingsToUI(){
+    swAlways.classList.toggle('on', settings.alwaysOn);
+    swWake.classList.toggle('on', settings.wakeRequired);
+    wakeWordInput.value = settings.wakeWord;
+    langSel.value = settings.lang;
+    personalityBox.value = settings.personality;
+    groqKeyInput.value = settings.groqApiKey || '';
+    groqModelSel.value = settings.groqModel || 'llama-3.3-70b-versatile';
+    updateModeLabel();
+  }
+  function updateModeLabel(){
+    if(settings.alwaysOn){
+      modeLabel.innerHTML = settings.wakeRequired
+        ? '<b>ASCOLTO CONTINUO</b>attende "'+settings.wakeWord+'"'
+        : '<b>ASCOLTO CONTINUO</b>risponde a tutto';
+    } else {
+      modeLabel.innerHTML = '<b>MANUALE</b>tocca per parlare';
+    }
+  }
+
+  // ---------- drawer ----------
+  gearBtn.onclick = ()=>{ drawer.classList.add('show'); overlay.classList.add('show'); };
+  function hideDrawer(){ drawer.classList.remove('show'); overlay.classList.remove('show'); }
+  closeDrawer.onclick = hideDrawer; overlay.onclick = hideDrawer;
+  swAlways.onclick = ()=>{ settings.alwaysOn = !settings.alwaysOn; applySettingsToUI(); saveSettings(); syncListening(); };
+  swWake.onclick = ()=>{ settings.wakeRequired = !settings.wakeRequired; applySettingsToUI(); saveSettings(); };
+  wakeWordInput.onchange = ()=>{ settings.wakeWord = wakeWordInput.value.trim().toLowerCase()||'jarvis'; applySettingsToUI(); saveSettings(); };
+  langSel.onchange = ()=>{ settings.lang = langSel.value; saveSettings(); restartRecognitionIfNeeded(); };
+  personalityBox.onchange = ()=>{ settings.personality = personalityBox.value; saveSettings(); };
+  voiceSel.onchange = ()=>{ settings.voiceURI = voiceSel.value; saveSettings(); };
+  groqKeyInput.onchange = ()=>{ settings.groqApiKey = groqKeyInput.value.trim(); saveSettings(); };
+  groqModelSel.onchange = ()=>{ settings.groqModel = groqModelSel.value; saveSettings(); };
+
+  function populateVoices(){
+    const voices = speechSynthesis.getVoices();
+    voiceSel.innerHTML='';
+    voices.forEach(v=>{
+      const o=document.createElement('option');
+      o.value=v.voiceURI; o.textContent=v.name+' ('+v.lang+')';
+      if(v.voiceURI===settings.voiceURI) o.selected=true;
+      voiceSel.appendChild(o);
+    });
+  }
+  speechSynthesis.onvoiceschanged = populateVoices;
+  populateVoices();
+
+  // ---------- state / core visual ----------
+  function setState(state, label){
+    coreSvg.className = state;
+    statusPill.className = 'status-pill '+ (state==='idle'?'':state);
+    const map = {idle:'INATTIVO', listening:'IN ASCOLTO', thinking:'ELABORAZIONE', speaking:'RISPOSTA', error:'ERRORE'};
+    statusPill.textContent = map[state]||state.toUpperCase();
+    coreLabel.textContent = label || '';
+    micBtn.classList.toggle('on', state==='listening');
+  }
+  setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+
+  // radial bars (visualizzatore audio)
+  const N_BARS = 40, bars=[];
+  for(let i=0;i<N_BARS;i++){
+    const angle = (i/N_BARS)*Math.PI*2;
+    const bar = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bar.setAttribute('class','bar');
+    bar.setAttribute('width','2.4');
+    bar.setAttribute('height','6');
+    bar.setAttribute('x',100+62*Math.cos(angle));
+    bar.setAttribute('y',100+62*Math.sin(angle));
+    bar.setAttribute('transform', 'rotate('+(angle*180/Math.PI+90)+' '+(100+62*Math.cos(angle))+' '+(100+62*Math.sin(angle))+')');
+    bar.dataset.angle = angle;
+    barGroup.appendChild(bar);
+    bars.push(bar);
+  }
+
+  // anello a piastre segmentate (estetica armatura Mark 85)
+  const tickGroup = $('tickGroup');
+  const N_TICKS = 72;
+  for(let i=0;i<N_TICKS;i++){
+    const angle = (i/N_TICKS)*Math.PI*2;
+    const r1 = 96, r2 = (i%6===0) ? 90 : 93; // ogni 6a tacca più lunga, come una giuntura di piastra
+    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
+    tick.setAttribute('x1', 100+r1*Math.cos(angle));
+    tick.setAttribute('y1', 100+r1*Math.sin(angle));
+    tick.setAttribute('x2', 100+r2*Math.cos(angle));
+    tick.setAttribute('y2', 100+r2*Math.sin(angle));
+    tick.setAttribute('class', i%6===0 ? 'plate-tick major' : 'plate-tick');
+    tickGroup.appendChild(tick);
+  }
+  let analyser=null, audioData=null, rafId=null;
+  async function startVisualizer(){
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      src.connect(analyser);
+      audioData = new Uint8Array(analyser.frequencyBinCount);
+      drawBars();
+    }catch(e){ /* microfono non disponibile per il visualizzatore, non blocca l'assistente */ }
+  }
+  function drawBars(){
+    rafId = requestAnimationFrame(drawBars);
+    if(!analyser) return;
+    analyser.getByteFrequencyData(audioData);
+    bars.forEach((bar,i)=>{
+      const v = audioData[i % audioData.length]/255;
+      const len = 5 + v*26;
+      const angle = parseFloat(bar.dataset.angle);
+      bar.setAttribute('height', len);
+      bar.setAttribute('x', 100+62*Math.cos(angle));
+      bar.setAttribute('y', 100+62*Math.sin(angle) - len/2 + 3);
+    });
+  }
+
+  // ---------- transcript log ----------
+  function addMsg(who, text){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg ' + who;
+    div.innerHTML = '<span class="who">'+({user:'TU', ai:'JARVIS', sys:'SISTEMA'}[who])+'</span><span class="bubble"></span>';
+    div.querySelector('.bubble').textContent = text;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // ---------- speech recognition ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition=null, manualActive=false, shouldRun=false;
+
+  if(!SR){
+    setState('error','Riconoscimento vocale non supportato in questo browser');
+    addMsg('sys','Il tuo browser non supporta il riconoscimento vocale (capita spesso su Samsung Internet, Firefox Android, ecc.). Usa il campo di testo qui sotto per parlare comunque con JARVIS, oppure passa a Chrome/Edge.');
+    micBtn.style.opacity = '.35';
+    micBtn.style.pointerEvents = 'none';
+  } else {
+    initRecognition();
+    startVisualizer();
+  }
+
+  // ---------- input testuale (fallback o semplicemente comodo, es. su PC) ----------
+  function sendTextMessage(){
+    const val = textInput.value.trim();
+    if(!val || busy) return;
+    textInput.value = '';
+    // il testo digitato bypassa sempre la parola d'attivazione: è già un comando esplicito
+    processCommand(val);
+  }
+  sendBtn.onclick = sendTextMessage;
+  textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendTextMessage(); });
+
+  function initRecognition(){
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = settings.lang;
+
+    recognition.onstart = ()=>{ setState('listening', 'in ascolto…'); };
+    recognition.onerror = (e)=>{
+      if(e.error==='not-allowed' || e.error==='service-not-allowed'){
+        setState('error','Permesso microfono negato');
+        addMsg('sys','Permesso al microfono negato. Consentilo dalle impostazioni del browser.');
+        shouldRun=false;
+      }
+    };
+    recognition.onend = ()=>{
+      if(shouldRun){ try{ recognition.start(); }catch(e){} }
+      else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+    };
+    recognition.onresult = (event)=>{
+      let finalText='';
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        if(event.results[i].isFinal) finalText += event.results[i][0].transcript;
+      }
+      if(!finalText.trim()) return;
+      handleUtterance(finalText.trim());
+    };
+  }
+
+  function restartRecognitionIfNeeded(){
+    if(!recognition) return;
+    const wasRunning = shouldRun;
+    stopListening();
+    initRecognition();
+    if(wasRunning) startListening();
+  }
+
+  function startListening(){
+    if(!recognition) return;
+    shouldRun = true;
+    try{ recognition.start(); }catch(e){}
+  }
+  function stopListening(){
+    shouldRun = false;
+    try{ recognition.stop(); }catch(e){}
+    setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+  }
+
+  // ---------- wake lock (evita che lo schermo si spenga durante l'ascolto continuo su mobile) ----------
+  let wakeLock = null;
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+      }
+    }catch(e){ /* non supportato o negato: l'app funziona comunque, ma lo schermo potrebbe spegnersi */ }
+  }
+  function releaseWakeLock(){
+    try{ if(wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){}
+  }
+  // se il browser (es. Chrome Android) sospende lo screen lock quando l'app va in background,
+  // lo richiediamo di nuovo appena l'utente torna sulla scheda/app
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible' && settings.alwaysOn) requestWakeLock();
+  });
+
+  function syncListening(){
+    if(settings.alwaysOn){ startListening(); requestWakeLock(); }
+    else { stopListening(); releaseWakeLock(); }
+  }
+
+  micBtn.onclick = ()=>{
+    if(settings.alwaysOn) return; // in modalità continua il pulsante è solo indicativo
+    if(shouldRun){ stopListening(); }
+    else { startListening(); }
+  };
+
+  // ---------- utterance handling ----------
+  let busy = false;
+  async function handleUtterance(text){
+    const lower = text.toLowerCase();
+    const wake = settings.wakeWord.toLowerCase();
+
+    if(settings.wakeRequired){
+      const idx = lower.indexOf(wake);
+      if(idx === -1) return; // parola d'attivazione non presente, ignora
+      // prende ciò che segue la wake word; se non c'è nulla dopo, aspetta la prossima frase come comando
+      let command = text.slice(idx+wake.length).replace(/^[\s,.:;-]+/,'').trim();
+      if(!command){ addMsg('sys','Ti ascolto…'); return; }
+      text = command;
+    }
+    processCommand(text);
+  }
+
+  async function processCommand(text){
+    if(busy) return;
+    busy = true;
+    addMsg('user', text);
+    setState('thinking','elaborazione…');
+    try{
+      const reply = await askGroq(text);
+      addMsg('ai', reply);
+      await speak(reply);
+    }catch(err){
+      addMsg('sys','Errore nella richiesta: '+err.message);
+      setState('error','Errore');
+    }
+    busy = false;
+    if(shouldRun) setState('listening','in ascolto…');
+    else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+  }
+
+  const history = [];
+  async function askGroq(userText){
+    if(!settings.groqApiKey){
+      throw new Error('Chiave API Groq mancante. Aggiungila dalle impostazioni (icona ingranaggio).');
+    }
+    history.push({role:'user', content:userText});
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+settings.groqApiKey
+      },
+      body: JSON.stringify({
+        model: settings.groqModel || 'llama-3.3-70b-versatile',
+        max_tokens:400,
+        messages: [{role:'system', content: settings.personality}, ...history.slice(-10)]
+      })
+    });
+    if(!res.ok){
+      let detail = '';
+      try{ const errBody = await res.json(); detail = errBody?.error?.message ? ' - '+errBody.error.message : ''; }catch(e){}
+      throw new Error('HTTP '+res.status+detail);
+    }
+    const data = await res.json();
+    const reply = data?.choices?.[0]?.message?.content || '...';
+    history.push({role:'assistant', content:reply});
+    return reply;
+  }
+
+  function speak(text){
+    return new Promise(resolve=>{
+      // interrompe l'ascolto mentre parla per evitare che si ascolti da sola
+      if(shouldRun){ try{ recognition.stop(); }catch(e){} }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = settings.lang;
+      const voices = speechSynthesis.getVoices();
+      const v = voices.find(v=>v.voiceURI===settings.voiceURI);
+      if(v) utter.voice = v;
+      setState('speaking','risposta vocale…');
+      utter.onend = ()=>{ resolve(); };
+      utter.onerror = ()=>{ resolve(); };
+      speechSynthesis.speak(utter);
+    });
+  }
+
+  loadSettings();
+
+  // ---------- PWA: registra il service worker (necessario per l'installazione su Android) ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./sw.js').catch(()=>{ /* offline/non hostato: ignora */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
