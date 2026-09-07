@@ -366,7 +366,7 @@
       Il riconoscimento vocale usa la Web Speech API del browser (gratuita, funziona meglio su Chrome/Edge sia desktop che Android). Le risposte vengono generate chiamando l'API di Groq: inserisci qui la tua chiave (creala gratis su console.groq.com). La chiave resta salvata sul dispositivo (localStorage del browser) e viene inviata solo alle API di Groq.<br><br>
       <b>Su Android:</b> ospita questi file (index.html, manifest.json, sw.js, icon-192.png, icon-512.png) su un sito HTTPS (es. GitHub Pages), apri il sito in Chrome e scegli "Aggiungi a schermata Home". Una volta installata, l'app si apre a schermo intero come una vera app, il permesso microfono resta valido stabilmente e la chiave API non si perde più tra un avvio e l'altro.<br><br>
       <b>Browser senza riconoscimento vocale</b> (es. Samsung Internet, Firefox Android): usa il campo di testo in basso per scrivere a JARVIS, la risposta vocale funziona comunque.<br><br>
-      In ascolto continuo, l'app richiede il "wake lock" per evitare che lo schermo si spenga durante l'attesa della parola d'attivazione.<br><br>
+      In ascolto continuo, l'app richiede il "wake lock" per evitare che lo schermo si spenga durante l'attesa della parola d'attivazione. Su Android il visualizzatore ad onde è disattivato per non entrare in conflitto con il microfono del riconoscimento vocale — la sfera comunque "respira" con un'animazione.<br><br>
       <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche) serve la chiave API.<br><br>
       <b>Apertura siti:</b> per motivi di sicurezza il browser non permette al codice di aprire schede da solo — comparirà un link cliccabile in chat, va toccato.
     </div>
@@ -496,7 +496,14 @@
     tickGroup.appendChild(tick);
   }
   let analyser=null, audioData=null, rafId=null;
+  // su Android Chrome un secondo accesso al microfono (getUserMedia) in parallelo al
+  // riconoscimento vocale nativo spesso causa conflitti: il sistema operativo concede l'uso
+  // esclusivo del microfono a un solo "consumatore" per volta, e la voce smette di funzionare.
+  // Per questo il visualizzatore ad onde audio reali viene attivato solo su desktop;
+  // su Android la sfera continua comunque a "respirare" con l'animazione CSS.
+  const isAndroid = /Android/i.test(navigator.userAgent);
   async function startVisualizer(){
+    if(isAndroid) return;
     try{
       const stream = await navigator.mediaDevices.getUserMedia({audio:true});
       const ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -535,7 +542,7 @@
 
   // ---------- speech recognition ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition=null, manualActive=false, shouldRun=false;
+  let recognition=null, manualActive=false, shouldRun=false, restartTimer=null;
 
   if(!SR){
     setState('error','Riconoscimento vocale non supportato in questo browser');
@@ -559,24 +566,48 @@
   textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendTextMessage(); });
 
   function initRecognition(){
-    recognition = new SR();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = settings.lang;
+    recognition = buildRecognition();
+  }
 
-    recognition.onstart = ()=>{ setState('listening', 'in ascolto…'); };
-    recognition.onerror = (e)=>{
+  function buildRecognition(){
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = settings.lang;
+    r.maxAlternatives = 1;
+
+    r.onstart = ()=>{ setState('listening', 'in ascolto…'); };
+
+    r.onerror = (e)=>{
       if(e.error==='not-allowed' || e.error==='service-not-allowed'){
         setState('error','Permesso microfono negato');
-        addMsg('sys','Permesso al microfono negato. Consentilo dalle impostazioni del browser.');
-        shouldRun=false;
+        addMsg('sys','Permesso al microfono negato. Su Android: tocca l\'icona (i) o il lucchetto accanto all\'indirizzo del sito in Chrome → Autorizzazioni → Microfono → Consenti, poi ricarica la pagina.');
+        shouldRun = false;
+        return;
+      }
+      if(e.error==='audio-capture'){
+        setState('error','Microfono non disponibile');
+        addMsg('sys','Il microfono non risulta disponibile: potrebbe essere in uso da un\'altra app (es. un\'altra scheda con videochiamata) sul telefono.');
+        shouldRun = false;
+        return;
+      }
+      // 'no-speech', 'network', 'aborted': normali durante l'uso su Android, gestiti dal riavvio automatico in onend
+    };
+
+    r.onend = ()=>{
+      recognition = null;
+      if(shouldRun){
+        // su Android Chrome il riconoscimento si interrompe da solo di frequente anche con continuous:true;
+        // lo ricreiamo da zero con un breve ritardo, invece di riusare la stessa istanza, per evitare
+        // errori "already started"/InvalidStateError tipici di quel browser
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(()=>{ if(shouldRun) startListening(); }, 350);
+      } else {
+        setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
       }
     };
-    recognition.onend = ()=>{
-      if(shouldRun){ try{ recognition.start(); }catch(e){} }
-      else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
-    };
-    recognition.onresult = (event)=>{
+
+    r.onresult = (event)=>{
       let finalText='';
       for(let i=event.resultIndex;i<event.results.length;i++){
         if(event.results[i].isFinal) finalText += event.results[i][0].transcript;
@@ -584,24 +615,34 @@
       if(!finalText.trim()) return;
       handleUtterance(finalText.trim());
     };
+
+    return r;
   }
 
   function restartRecognitionIfNeeded(){
-    if(!recognition) return;
     const wasRunning = shouldRun;
-    stopListening();
-    initRecognition();
-    if(wasRunning) startListening();
+    shouldRun = false;
+    clearTimeout(restartTimer);
+    try{ if(recognition) recognition.stop(); }catch(e){}
+    recognition = null;
+    if(wasRunning) setTimeout(()=>startListening(), 250);
   }
 
   function startListening(){
-    if(!recognition) return;
     shouldRun = true;
-    try{ recognition.start(); }catch(e){}
+    clearTimeout(restartTimer);
+    if(!recognition) recognition = buildRecognition();
+    try{
+      recognition.start();
+    }catch(e){
+      // istanza in stato incoerente (tipico su Android dopo riavvii ravvicinati): ne creiamo una nuova
+      try{ recognition = buildRecognition(); recognition.start(); }catch(e2){}
+    }
   }
   function stopListening(){
     shouldRun = false;
-    try{ recognition.stop(); }catch(e){}
+    clearTimeout(restartTimer);
+    try{ if(recognition) recognition.stop(); }catch(e){}
     setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
   }
 
@@ -891,16 +932,26 @@
 
   function speak(text){
     return new Promise(resolve=>{
-      // interrompe l'ascolto mentre parla per evitare che si ascolti da sola
-      if(shouldRun){ try{ recognition.stop(); }catch(e){} }
+      // sospende del tutto l'ascolto (non solo lo stop, anche il riavvio automatico) mentre parla,
+      // per evitare che il microfono raccolga la voce di JARVIS dall'altoparlante e la scambi per un comando
+      const wasListening = shouldRun;
+      if(wasListening){
+        shouldRun = false;
+        clearTimeout(restartTimer);
+        try{ if(recognition) recognition.stop(); }catch(e){}
+      }
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = settings.lang;
       const voices = speechSynthesis.getVoices();
       const v = voices.find(v=>v.voiceURI===settings.voiceURI);
       if(v) utter.voice = v;
       setState('speaking','risposta vocale…');
-      utter.onend = ()=>{ resolve(); };
-      utter.onerror = ()=>{ resolve(); };
+      const resumeAndResolve = ()=>{
+        if(wasListening) setTimeout(()=>{ startListening(); }, 250);
+        resolve();
+      };
+      utter.onend = resumeAndResolve;
+      utter.onerror = resumeAndResolve;
       speechSynthesis.speak(utter);
     });
   }
