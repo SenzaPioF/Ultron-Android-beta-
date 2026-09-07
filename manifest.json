@@ -1,7 +1,7 @@
 {
-  "name": "J.A.R.V.I.S. Mark 85",
-  "short_name": "JARVIS",
-  "description": "Assistente vocale personale in stile J.A.R.V.I.S. Mark 85",
+  "name": "Ultron PioF",
+  "short_name": "Ultron",
+  "description": "Assistente vocale personale in stile (SenzaPioF)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
