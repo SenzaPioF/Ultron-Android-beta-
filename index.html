@@ -543,6 +543,8 @@
   // ---------- speech recognition ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition=null, manualActive=false, shouldRun=false, restartTimer=null;
+  let transcriptBuffer='', silenceTimer=null;
+  const SILENCE_MS = 900; // pausa di silenzio richiesta prima di considerare la frase conclusa
 
   if(!SR){
     setState('error','Riconoscimento vocale non supportato in questo browser');
@@ -608,12 +610,24 @@
     };
 
     r.onresult = (event)=>{
-      let finalText='';
+      let finalChunk='', interimChunk='';
       for(let i=event.resultIndex;i<event.results.length;i++){
-        if(event.results[i].isFinal) finalText += event.results[i][0].transcript;
+        if(event.results[i].isFinal) finalChunk += event.results[i][0].transcript;
+        else interimChunk += event.results[i][0].transcript;
       }
-      if(!finalText.trim()) return;
-      handleUtterance(finalText.trim());
+      if(finalChunk) transcriptBuffer += finalChunk;
+
+      // su Android ogni piccola pausa viene marcata come "isFinal" troppo presto: invece di rispondere
+      // subito, aspettiamo un breve momento di silenzio reale prima di considerare la frase conclusa,
+      // così l'utente ha il tempo di finire di parlare senza essere interrotto
+      clearTimeout(silenceTimer);
+      if(transcriptBuffer.trim() || interimChunk.trim()){
+        silenceTimer = setTimeout(()=>{
+          const text = transcriptBuffer.trim();
+          transcriptBuffer = '';
+          if(text) handleUtterance(text);
+        }, SILENCE_MS);
+      }
     };
 
     return r;
@@ -642,6 +656,8 @@
   function stopListening(){
     shouldRun = false;
     clearTimeout(restartTimer);
+    clearTimeout(silenceTimer);
+    transcriptBuffer = '';
     try{ if(recognition) recognition.stop(); }catch(e){}
     setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
   }
@@ -938,6 +954,8 @@
       if(wasListening){
         shouldRun = false;
         clearTimeout(restartTimer);
+        clearTimeout(silenceTimer);
+        transcriptBuffer = '';
         try{ if(recognition) recognition.stop(); }catch(e){}
       }
       const utter = new SpeechSynthesisUtterance(text);
