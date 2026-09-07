@@ -367,7 +367,8 @@
       <b>Su Android:</b> ospita questi file (index.html, manifest.json, sw.js, icon-192.png, icon-512.png) su un sito HTTPS (es. GitHub Pages), apri il sito in Chrome e scegli "Aggiungi a schermata Home". Una volta installata, l'app si apre a schermo intero come una vera app, il permesso microfono resta valido stabilmente e la chiave API non si perde più tra un avvio e l'altro.<br><br>
       <b>Browser senza riconoscimento vocale</b> (es. Samsung Internet, Firefox Android): usa il campo di testo in basso per scrivere a JARVIS, la risposta vocale funziona comunque.<br><br>
       In ascolto continuo, l'app richiede il "wake lock" per evitare che lo schermo si spenga durante l'attesa della parola d'attivazione.<br><br>
-      <b>Novità:</b> JARVIS ora sa dirti data/ora, la tua posizione (previa autorizzazione del browser) e può mostrarti un link cliccabile per aprire un sito — per motivi di sicurezza il browser non permette di aprire pagine da solo, va toccato il link che compare in chat.
+      <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche) serve la chiave API.<br><br>
+      <b>Apertura siti:</b> per motivi di sicurezza il browser non permette al codice di aprire schede da solo — comparirà un link cliccabile in chat, va toccato.
     </div>
   </div>
 </div>
@@ -655,6 +656,18 @@
     if(busy) return;
     busy = true;
     addMsg('user', text);
+
+    // ---------- comandi locali: rispondono subito senza passare dall'IA/Groq ----------
+    const localReply = await tryLocalCommand(text);
+    if(localReply !== null){
+      addMsg('ai', localReply);
+      await speak(localReply);
+      busy = false;
+      if(shouldRun) setState('listening','in ascolto…');
+      else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+      return;
+    }
+
     setState('thinking','elaborazione…');
     try{
       const reply = await askGroq(text);
@@ -667,6 +680,65 @@
     busy = false;
     if(shouldRun) setState('listening','in ascolto…');
     else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+  }
+
+  // ---------- comandi locali (nessuna IA/API necessaria) ----------
+  const SITE_MAP = {
+    'youtube':'https://www.youtube.com', 'you tube':'https://www.youtube.com',
+    'google':'https://www.google.com',
+    'gmail':'https://mail.google.com',
+    'whatsapp':'https://web.whatsapp.com', 'whats app':'https://web.whatsapp.com',
+    'instagram':'https://www.instagram.com',
+    'facebook':'https://www.facebook.com',
+    'twitter':'https://twitter.com', 'x':'https://twitter.com',
+    'github':'https://github.com',
+    'spotify':'https://open.spotify.com',
+    'netflix':'https://www.netflix.com',
+    'wikipedia':'https://it.wikipedia.org',
+    'amazon':'https://www.amazon.it',
+    'maps':'https://maps.google.com', 'mappe':'https://maps.google.com', 'google maps':'https://maps.google.com'
+  };
+
+  async function tryLocalCommand(rawText){
+    const text = rawText.toLowerCase().trim();
+
+    if(/che (ore sono|ora è|ora e)|dimmi l.ora/.test(text)){
+      const now = new Date();
+      return `Sono le ${now.getHours()} e ${now.getMinutes().toString().padStart(2,'0')}.`;
+    }
+
+    if(/che (giorno è|giorno e|data è|data e)|dimmi la data/.test(text)){
+      const now = new Date();
+      return 'Oggi è ' + now.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) + '.';
+    }
+
+    if(/dove (mi trovo|sono)|(la |)mia posizione|dammi la posizione/.test(text)){
+      if(!('geolocation' in navigator)) return 'Il tuo browser non supporta la geolocalizzazione.';
+      try{
+        const info = await executeTool('get_user_location', {});
+        if(info.citta) return `Ti trovi a ${info.citta}${info.regione ? ', '+info.regione : ''}${info.nazione ? ', '+info.nazione : ''}.`;
+        return `Ti trovi circa a latitudine ${info.latitudine.toFixed(4)} e longitudine ${info.longitudine.toFixed(4)}.`;
+      }catch(e){
+        return 'Non riesco a ottenere la tua posizione: ' + e.message;
+      }
+    }
+
+    const openMatch = text.match(/^(?:apri|vai su|apri il sito|apri la pagina)\s+(.+)/);
+    if(openMatch){
+      let target = openMatch[1].trim().replace(/^(il |la |lo )/, '');
+      let url = SITE_MAP[target];
+      if(!url){
+        if(/^https?:\/\//i.test(target)) url = target;
+        else if(/^[\w-]+(\.[\w-]+)+/.test(target)) url = 'https://' + target.replace(/\s+/g,'');
+      }
+      if(url){
+        addLinkMsg(url, target);
+        return `Ecco il link per ${target}, toccalo per aprirlo.`;
+      }
+      return null; // non riconosciuto: lascia decidere all'IA
+    }
+
+    return null; // nessun comando locale corrisponde: passa alla IA (Groq)
   }
 
   // ---------- strumenti disponibili per JARVIS (eseguiti localmente nel browser) ----------
