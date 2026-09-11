@@ -215,6 +215,14 @@
     display:flex; align-items:center; justify-content:center; cursor:pointer;
   }
   .send-btn svg{width:17px;height:17px;}
+  .attach-btn{
+    width:38px;height:38px;border-radius:50%; flex-shrink:0;
+    background:var(--bg-panel); border:1px solid var(--line); color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .attach-btn:active{border-color:var(--accent-dim); color:var(--accent);}
+  .attach-btn svg{width:16px;height:16px;}
+  .timer-count{color:var(--accent);}
 
   /* ---------- settings drawer ---------- */
   .overlay{
@@ -312,6 +320,10 @@
   </div>
 
   <div class="text-fallback" id="textFallback">
+    <div class="attach-btn" id="attachBtn" title="Allega un file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3 3 0 014.24 4.24l-8.49 8.48a1 1 0 01-1.41-1.41l7.78-7.78"/></svg>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".txt,.md,.csv,.json,.log,.js,.ts,.py,.html,.css,.xml,.yaml,.yml,.pdf,application/pdf,text/*" style="display:none">
     <input type="text" id="textInput" placeholder="Scrivi un messaggio…" autocomplete="off">
     <div class="send-btn" id="sendBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
@@ -367,6 +379,10 @@
       <b>Su Android:</b> ospita questi file (index.html, manifest.json, sw.js, icon-192.png, icon-512.png) su un sito HTTPS (es. GitHub Pages), apri il sito in Chrome e scegli "Aggiungi a schermata Home". Una volta installata, l'app si apre a schermo intero come una vera app, il permesso microfono resta valido stabilmente e la chiave API non si perde più tra un avvio e l'altro.<br><br>
       <b>Browser senza riconoscimento vocale</b> (es. Samsung Internet, Firefox Android): usa il campo di testo in basso per scrivere a JARVIS, la risposta vocale funziona comunque.<br><br>
       In ascolto continuo, l'app richiede il "wake lock" per evitare che lo schermo si spenga durante l'attesa della parola d'attivazione. Su Android il visualizzatore ad onde è disattivato per non entrare in conflitto con il microfono del riconoscimento vocale — la sfera comunque "respira" con un'animazione.<br><br>
+      <b>Allegati:</b> tocca l'icona 📎 accanto al campo di testo per allegare file di testo (.txt, .md, .csv, .json, codice…) o PDF: JARVIS li legge e li tiene a mente per rispondere alle tue domande sul contenuto.<br><br>
+      <b>Apertura siti "in autonomia":</b> l'app prova sempre ad aprire il link da sola. Se parte da un tocco (es. hai scritto il messaggio), spesso ci riesce. Se il comando arriva dalla voce, il browser Android per sicurezza blocca l'apertura automatica non richiesta da un tocco diretto — in quel caso comparirà comunque un link cliccabile in chat, basta toccarlo.<br><br>
+      <b>Timer:</b> di' o scrivi "metti un timer di 5 minuti" (funziona anche senza chiave API). Allo scadere sentirai un suono e (su mobile) una vibrazione — ma solo se l'app resta aperta in primo piano: i browser sospendono i timer quando l'app va in background per molto tempo, quindi non sostituisce una sveglia reale.
+    </div>
       <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche) serve la chiave API.<br><br>
       <b>Apertura siti:</b> per motivi di sicurezza il browser non permette al codice di aprire schede da solo — comparirà un link cliccabile in chat, va toccato.
     </div>
@@ -383,6 +399,7 @@
   const voiceSel = $('voiceSel'), personalityBox = $('personality'), barGroup = $('barGroup');
   const groqKeyInput = $('groqKey'), groqModelSel = $('groqModel');
   const textFallback = $('textFallback'), textInput = $('textInput'), sendBtn = $('sendBtn');
+  const attachBtn = $('attachBtn'), fileInput = $('fileInput');
 
   let settings = {
     alwaysOn:false, wakeRequired:true, wakeWord:'jarvis',
@@ -566,6 +583,76 @@
   }
   sendBtn.onclick = sendTextMessage;
   textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendTextMessage(); });
+
+  // ---------- allegati: lettura e analisi di file (testo e PDF) ----------
+  const MAX_FILE_CHARS = 15000;
+  attachBtn.onclick = ()=> fileInput.click();
+  fileInput.addEventListener('change', async ()=>{
+    const files = Array.from(fileInput.files || []);
+    fileInput.value = '';
+    for(const f of files){ await handleFileAttachment(f); }
+  });
+
+  async function handleFileAttachment(file){
+    addMsg('sys', `📎 Leggo "${file.name}"…`);
+    try{
+      let text;
+      if(file.type === 'application/pdf' || /\.pdf$/i.test(file.name)){
+        text = await extractPdfText(file);
+      } else {
+        text = await file.text();
+      }
+      text = (text || '').replace(/\r/g,'').trim();
+      let truncNote = '';
+      if(text.length > MAX_FILE_CHARS){
+        text = text.slice(0, MAX_FILE_CHARS);
+        truncNote = ` (troncato ai primi ${MAX_FILE_CHARS} caratteri)`;
+      }
+      if(!text){
+        addMsg('sys', `Non sono riuscito a estrarre testo leggibile da "${file.name}" (formato non supportato per l'analisi, es. immagine).`);
+        return;
+      }
+      history.push({ role:'user', content:`[File allegato dall'utente: ${file.name}${truncNote}]\n\n${text}` });
+      addMsg('sys', `✅ Ho letto "${file.name}" (${text.length} caratteri${truncNote}). Chiedimi pure cosa vuoi sapere a riguardo.`);
+    }catch(e){
+      addMsg('sys', `Errore leggendo "${file.name}": ${e.message}`);
+    }
+  }
+
+  let pdfjsReadyPromise = null;
+  function ensurePdfJs(){
+    if(pdfjsReadyPromise) return pdfjsReadyPromise;
+    pdfjsReadyPromise = new Promise((resolve, reject)=>{
+      if(window['pdfjs-dist/build/pdf']){ resolve(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+      s.onload = ()=>{
+        try{
+          window['pdfjs-dist/build/pdf'].GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+          resolve();
+        }catch(e){ reject(e); }
+      };
+      s.onerror = ()=> reject(new Error('impossibile caricare il lettore PDF, verifica la connessione'));
+      document.head.appendChild(s);
+    });
+    return pdfjsReadyPromise;
+  }
+
+  async function extractPdfText(file){
+    await ensurePdfJs();
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    const buf = await file.arrayBuffer();
+    const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    const maxPages = Math.min(doc.numPages, 40);
+    for(let p=1; p<=maxPages; p++){
+      const page = await doc.getPage(p);
+      const content = await page.getTextContent();
+      text += content.items.map(it=>it.str).join(' ') + '\n\n';
+    }
+    if(doc.numPages > maxPages) text += `\n[...documento troncato: mostrate solo le prime ${maxPages} pagine di ${doc.numPages} totali...]`;
+    return text;
+  }
 
   function initRecognition(){
     recognition = buildRecognition();
@@ -780,6 +867,18 @@
       }
     }
 
+    const timerMatch = text.match(/(?:metti|imposta|avvia|fai partire|crea)\s+(?:un\s+)?timer\s*(?:di|per)?\s*(\d+)\s*(secondi|secondo|minuti|minuto|ore|ora)(?:\s+(?:per|chiamato|con nome)\s+(.+))?/);
+    if(timerMatch){
+      const value = parseInt(timerMatch[1],10);
+      const unit = timerMatch[2];
+      const label = timerMatch[3] ? timerMatch[3].trim() : null;
+      let seconds = value;
+      if(unit.startsWith('minut')) seconds = value*60;
+      else if(unit.startsWith('or')) seconds = value*3600;
+      startTimer(seconds, label);
+      return `Timer di ${value} ${unit} avviato${label ? ' per '+label : ''}.`;
+    }
+
     const openMatch = text.match(/^(?:apri|vai su|apri il sito|apri la pagina)\s+(.+)/);
     if(openMatch){
       let target = openMatch[1].trim().replace(/^(il |la |lo )/, '');
@@ -789,8 +888,8 @@
         else if(/^[\w-]+(\.[\w-]+)+/.test(target)) url = 'https://' + target.replace(/\s+/g,'');
       }
       if(url){
-        addLinkMsg(url, target);
-        return `Ecco il link per ${target}, toccalo per aprirlo.`;
+        const opened = openOrShowLink(url, target);
+        return opened ? `Ho aperto ${target}.` : `Ecco il link per ${target}, toccalo per aprirlo (il browser ha bloccato l'apertura automatica).`;
       }
       return null; // non riconosciuto: lascia decidere all'IA
     }
@@ -820,7 +919,7 @@
       type:'function',
       function:{
         name:'open_website',
-        description:'Mostra all\'utente un link cliccabile per aprire un sito web in una nuova scheda. Usa questo strumento quando l\'utente chiede di aprire, cercare o visitare un sito.',
+        description:'Apre un sito web in una nuova scheda. Se il browser blocca l\'apertura automatica (succede spesso quando la richiesta arriva da un comando vocale, per policy di sicurezza), mostra comunque un link cliccabile all\'utente.',
         parameters:{
           type:'object',
           properties:{
@@ -830,10 +929,85 @@
           required:['url']
         }
       }
+    },
+    {
+      type:'function',
+      function:{
+        name:'set_timer',
+        description:'Avvia un timer/promemoria a tempo. Allo scadere, l\'app avvisa l\'utente con un suono, una vibrazione (su mobile) e un messaggio. Funziona in modo affidabile solo mentre l\'app resta aperta in primo piano.',
+        parameters:{
+          type:'object',
+          properties:{
+            seconds:{ type:'number', description:'Durata totale del timer in secondi' },
+            label:{ type:'string', description:'Etichetta opzionale del timer, es. "pasta" o "riunione"' }
+          },
+          required:['seconds']
+        }
+      }
     }
   ];
 
-  const TOOL_INSTRUCTIONS = 'Hai a disposizione strumenti per: conoscere data/ora attuali, conoscere la posizione dell\'utente, e mostrare un link cliccabile per aprire un sito web (non puoi aprirlo direttamente tu, il browser richiede un tocco dell\'utente per motivi di sicurezza). Usa questi strumenti ogni volta che la richiesta lo richiede, senza chiedere conferma per informazioni semplici come data, ora o posizione.';
+  const TOOL_INSTRUCTIONS = 'Hai a disposizione strumenti per: conoscere data/ora attuali, conoscere la posizione dell\'utente, avviare un timer a tempo con avviso sonoro, e aprire un sito web (ci provi direttamente in autonomia; se il browser blocca l\'apertura automatica compare comunque un link cliccabile). Usa questi strumenti ogni volta che la richiesta lo richiede, senza chiedere conferma per informazioni semplici come data, ora, posizione o timer.';
+
+  // apre un URL tentando prima l'apertura diretta (autonoma); se il browser la blocca
+  // (tipico per i comandi vocali, che il browser non considera un "gesto" dell'utente),
+  // ripiega su un link cliccabile mostrato in chat
+  function openOrShowLink(url, label){
+    let win = null;
+    try{ win = window.open(url, '_blank', 'noopener'); }catch(e){ win = null; }
+    if(win){ return true; }
+    addLinkMsg(url, label);
+    return false;
+  }
+
+  const timers = [];
+  function startTimer(totalSeconds, label){
+    totalSeconds = Math.max(1, Math.round(totalSeconds));
+    const endsAt = Date.now() + totalSeconds*1000;
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg sys';
+    div.innerHTML = `<span class="who">SISTEMA</span><span class="bubble">⏱ Timer${label ? ' "'+label+'"' : ''} avviato: <b class="timer-count"></b></span>`;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+    const countEl = div.querySelector('.timer-count');
+    const tick = ()=>{
+      const remaining = Math.max(0, Math.round((endsAt - Date.now())/1000));
+      const m = Math.floor(remaining/60), s = remaining%60;
+      countEl.textContent = remaining>0 ? (m>0 ? `${m}:${s.toString().padStart(2,'0')}` : `${s}s`) : 'scaduto!';
+      if(remaining<=0){
+        clearInterval(interval);
+        onTimerDone(label);
+      }
+    };
+    const interval = setInterval(tick, 1000);
+    timers.push(interval);
+    tick();
+  }
+
+  function onTimerDone(label){
+    try{ if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]); }catch(e){}
+    beep();
+    const msg = 'Il timer' + (label ? ' "'+label+'"' : '') + ' è scaduto.';
+    addMsg('sys', '⏰ ' + msg);
+    speak(msg);
+  }
+
+  function beep(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 880;
+      o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime;
+      [0, 0.4, 0.8].forEach(off=>{
+        g.gain.setValueAtTime(0.0001, t+off);
+        g.gain.exponentialRampToValueAtTime(0.3, t+off+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+off+0.3);
+      });
+      o.start(t); o.stop(t+1.2);
+    }catch(e){}
+  }
 
   async function executeTool(name, args){
     if(name === 'get_current_datetime'){
@@ -868,8 +1042,13 @@
     if(name === 'open_website'){
       const url = (args && args.url || '').trim();
       if(!/^https?:\/\//i.test(url)) throw new Error('URL non valido, deve iniziare con http:// o https://');
-      addLinkMsg(url, args.label);
-      return { mostrato_allutente: true, url };
+      const opened = openOrShowLink(url, args.label);
+      return { aperto_direttamente: opened, url };
+    }
+    if(name === 'set_timer'){
+      const seconds = Math.max(1, Math.round(Number(args.seconds) || 0));
+      startTimer(seconds, args.label);
+      return { avviato:true, seconds, label: args.label || null };
     }
     throw new Error('Strumento sconosciuto: '+name);
   }
