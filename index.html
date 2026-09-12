@@ -299,10 +299,17 @@
     <svg id="coreSvg" viewBox="0 0 200 200">
       <defs>
         <radialGradient id="coreGrad" cx="50%" cy="45%" r="60%">
-          <stop offset="0%" stop-color="#ffe28a"/>
-          <stop offset="35%" stop-color="#ff3227"/>
-          <stop offset="100%" stop-color="#4a0d05"/>
+          <stop offset="0%" stop-color="var(--accent-3)"/>
+          <stop offset="35%" stop-color="var(--accent)"/>
+          <stop offset="100%" stop-color="var(--bg-panel-2)"/>
         </radialGradient>
+        <filter id="neonGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.4" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
       </defs>
       <g class="spin-rev">
         <circle class="ring ring-outer" cx="100" cy="100" r="94"/>
@@ -313,6 +320,20 @@
       <g id="tickGroup"></g>
       <g id="barGroup"></g>
       <circle class="core-disc pulse" cx="100" cy="100" r="46"/>
+      <!-- volto di drago stilizzato in stile neon, ispirato a Spyro ma disegno originale
+           (non una riproduzione del personaggio protetto da copyright) -->
+      <g class="dragon-face" filter="url(#neonGlow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M70,96 L59,90 L70,106 Z" fill="var(--accent-dim)" stroke="var(--accent-2)" stroke-width="1.6"/>
+        <path d="M130,96 L141,90 L130,106 Z" fill="var(--accent-dim)" stroke="var(--accent-2)" stroke-width="1.6"/>
+        <path d="M83,66 C75,54 71,40 77,24" stroke="var(--accent)" stroke-width="2.4"/>
+        <path d="M117,66 C125,54 129,40 123,24" stroke="var(--accent)" stroke-width="2.4"/>
+        <path d="M100,62 C118,62 132,78 132,98 C132,122 118,142 100,142 C82,142 68,122 68,98 C68,78 82,62 100,62 Z" stroke="var(--accent-2)" stroke-width="2.4"/>
+        <path d="M83,92 Q89,84 95,92 Q89,100 83,92 Z" fill="var(--accent-3)" stroke="var(--accent-2)" stroke-width="1.4"/>
+        <path d="M105,92 Q111,84 117,92 Q111,100 105,92 Z" fill="var(--accent-3)" stroke="var(--accent-2)" stroke-width="1.4"/>
+        <circle cx="93" cy="117" r="1.8" fill="var(--accent-3)"/>
+        <circle cx="107" cy="117" r="1.8" fill="var(--accent-3)"/>
+        <path d="M89,131 Q100,138 111,131" stroke="var(--accent-2)" stroke-width="2"/>
+      </g>
     </svg>
   </div>
   <div class="core-label" id="coreLabel">dì "Jarvis" per iniziare</div>
@@ -393,7 +414,23 @@
       <b>Generazione immagini:</b> di' o scrivi "genera un'immagine di un gatto astronauta" (funziona anche senza chiave API, servizio gratuito Pollinations.ai).<br><br>
       <b>Apertura siti "in autonomia":</b> l'app prova sempre ad aprire il link da sola. Se parte da un tocco (es. hai scritto il messaggio), spesso ci riesce. Se il comando arriva dalla voce, il browser Android per sicurezza blocca l'apertura automatica non richiesta da un tocco diretto — in quel caso comparirà comunque un link cliccabile in chat, basta toccarlo.<br><br>
       <b>Timer:</b> di' o scrivi "metti un timer di 5 minuti" (funziona anche senza chiave API). Allo scadere sentirai un suono e (su mobile) una vibrazione — ma solo se l'app resta aperta in primo piano: i browser sospendono i timer quando l'app va in background per molto tempo, quindi non sostituisce una sveglia reale.<br><br>
-      <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/...", "genera un'immagine di...", "metti un timer di..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche, analisi di file) serve la chiave API.
+      <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/...", "genera un'immagine di...", "metti un timer di..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche, analisi di file) serve la chiave API.<br><br>
+      <b>Tema colore:</b> cambialo manualmente in ogni momento dal menù "Tema colore" qui sopra, indipendentemente dal portale — la sfera centrale (il volto stilizzato) si adatta sempre ai colori del tema attivo.
+    </div>
+
+    <div class="field">
+      <label>Tema colore (manuale)</label>
+      <select id="themeSel">
+        <option value="default">Predefinito (rosso JARVIS)</option>
+        <option value="fire">🔥 Fuoco</option>
+        <option value="water">💧 Acqua</option>
+        <option value="air">💨 Aria</option>
+        <option value="earth">🪨 Terra</option>
+        <option value="life">🌿 Vita</option>
+        <option value="magic">✨ Magia</option>
+        <option value="tech">⚙️ Tech</option>
+        <option value="undead">👻 Non-morti</option>
+      </select>
     </div>
 
     <div class="field" id="portalSection">
@@ -418,13 +455,14 @@
   const swAlways = $('swAlways'), swWake = $('swWake'), wakeWordInput = $('wakeWord'), langSel = $('langSel');
   const voiceSel = $('voiceSel'), personalityBox = $('personality'), barGroup = $('barGroup');
   const groqKeyInput = $('groqKey'), groqModelSel = $('groqModel');
+  const themeSel = $('themeSel');
   const textFallback = $('textFallback'), textInput = $('textInput'), sendBtn = $('sendBtn');
   const attachBtn = $('attachBtn'), fileInput = $('fileInput');
 
   let settings = {
     alwaysOn:false, wakeRequired:true, wakeWord:'jarvis',
     lang:'it-IT', voiceURI:null, personality: personalityBox.value,
-    groqApiKey:'', groqModel:'openai/gpt-oss-20b'
+    groqApiKey:'', groqModel:'openai/gpt-oss-20b', theme:'default'
   };
 
   // ---------- persistence (localStorage: funziona su qualsiasi browser/dispositivo, PC e Android) ----------
@@ -453,6 +491,8 @@
     personalityBox.value = settings.personality;
     groqKeyInput.value = settings.groqApiKey || '';
     groqModelSel.value = settings.groqModel || 'openai/gpt-oss-20b';
+    if(themeSel){ themeSel.value = settings.theme || 'default'; }
+    applyElementTheme(settings.theme && settings.theme !== 'default' ? settings.theme : '__default__');
     updateModeLabel();
   }
   function updateModeLabel(){
@@ -477,6 +517,11 @@
   voiceSel.onchange = ()=>{ settings.voiceURI = voiceSel.value; saveSettings(); };
   groqKeyInput.onchange = ()=>{ settings.groqApiKey = groqKeyInput.value.trim(); saveSettings(); };
   groqModelSel.onchange = ()=>{ settings.groqModel = groqModelSel.value; saveSettings(); };
+  themeSel.onchange = ()=>{
+    settings.theme = themeSel.value;
+    applyElementTheme(settings.theme !== 'default' ? settings.theme : '__default__');
+    saveSettings();
+  };
 
   function populateVoices(){
     const voices = speechSynthesis.getVoices();
@@ -1314,7 +1359,12 @@
     r.setProperty('--text', t.text);
     r.setProperty('--text-dim', t.textDim);
   }
-  function resetPortalTheme(){ applyElementTheme('__default__'); }
+  function resetPortalTheme(){
+    applyElementTheme('__default__');
+    settings.theme = 'default';
+    if(themeSel) themeSel.value = 'default';
+    saveSettings();
+  }
 
   const portalLogEl = $('portalLog'), portalStatusEl = $('portalStatus'), portalConnectBtn = $('portalConnectBtn'), portalResetBtn = $('portalResetBtn'), portalSection = $('portalSection');
 
@@ -1383,6 +1433,9 @@
     const entry = SKYLANDER_DB[id];
     if(entry){
       applyElementTheme(entry.element);
+      settings.theme = entry.element;
+      if(themeSel) themeSel.value = entry.element;
+      saveSettings();
       setPortalStatus(entry.name+' ('+entry.element+') rilevato — tema applicato.');
       addMsg('sys', '🔮 Skylander riconosciuto: '+entry.name+' — elemento '+entry.element+'.');
     } else {
