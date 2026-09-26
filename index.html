@@ -1,1 +1,1654 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>NEBULA · Voice Interface</title>
+<meta name="theme-color" content="#120806">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#120806;
+    --bg-panel:#1c0f0a;
+    --bg-panel-2:#241309;
+    --line:#4a2410;
+    --accent:#ff3227;
+    --accent-dim:#7a1810;
+    --accent-2:#ffc72c;
+    --accent-3:#ffdb70;
+    --danger:#ff073a;
+    --text:#ffe9c7;
+    --text-dim:#a67856;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #2a1006 0%, var(--bg) 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Rajdhani',sans-serif;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .frame{
+    width:100%;
+    max-width:520px;
+    height:100vh;
+    height:100dvh; /* su Android/Chrome evita il "salto" quando appare/scompare la barra indirizzi */
+    max-height:900px;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    padding:calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+  }
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    font-family:'Orbitron',sans-serif;
+    font-weight:900;
+    letter-spacing:4px;
+    font-size:15px;
+    color:var(--accent);
+    text-shadow:0 0 12px rgba(255,50,39,.5);
+  }
+  .brand small{
+    display:block;
+    font-family:'Rajdhani',sans-serif;
+    font-weight:500;
+    letter-spacing:2px;
+    font-size:10px;
+    color:var(--text-dim);
+    margin-top:2px;
+  }
+  .head-right{display:flex; align-items:center; gap:10px;}
+  .mk-badge{
+    font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:1.5px;
+    color:var(--accent-2); border:1px solid var(--accent-2); border-radius:4px;
+    padding:4px 6px; opacity:.8;
+  }
+  .status-pill{
+    font-family:'Orbitron',sans-serif;
+    font-size:10px;
+    letter-spacing:2px;
+    padding:6px 10px;
+    border-radius:20px;
+    border:1px solid var(--accent-dim);
+    color:var(--accent);
+    transition:all .3s ease;
+    white-space:nowrap;
+  }
+  .status-pill.thinking{border-color:var(--accent-3); color:var(--accent-3);}
+  .status-pill.speaking{border-color:var(--accent-2); color:var(--accent-2);}
+  .status-pill.error{border-color:var(--danger); color:var(--danger);}
+  .gear{
+    width:34px;height:34px;border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--bg-panel);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer; color:var(--text-dim);
+    transition:all .2s;
+  }
+  .gear:hover{color:var(--accent); border-color:var(--accent-dim);}
+  .gear svg{width:16px;height:16px;}
+
+  /* ---------- core ---------- */
+  .core-wrap{
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    padding:26px 0 10px;
+  }
+  /* ---------- ologramma reattore arc (in alto a sinistra, rotazione 3D via CSS) ---------- */
+  .arc-reactor-wrap{
+    position:absolute; top:64px; left:26px; width:56px; height:56px;
+    perspective:340px; z-index:5; opacity:.9; pointer-events:none;
+    animation:arcFlicker 3.2s ease-in-out infinite;
+  }
+  .arc-reactor-wrap svg{
+    width:100%; height:100%; display:block;
+    animation:arcSpin 7s linear infinite;
+    transform-style:preserve-3d;
+  }
+  @keyframes arcSpin{ from{ transform:rotateY(0deg); } to{ transform:rotateY(360deg); } }
+  @keyframes arcFlicker{ 0%,100%{ opacity:.78; } 45%{ opacity:1; } 60%{ opacity:.65; } 75%{ opacity:.95; } }
+  @media (max-width:380px){ .arc-reactor-wrap{ top:58px; left:18px; width:46px; height:46px; } }
+  #coreSvg{width:200px; height:200px; overflow:visible;}
+  .ring{fill:none; stroke:var(--accent); opacity:.55;}
+  .ring-outer{stroke-width:1;}
+  .ring-mid{stroke-width:1.4; stroke-dasharray:2 6;}
+  .core-disc{fill:url(#coreGrad); transition:filter .3s ease;}
+  .bar{fill:var(--accent); transform-origin:center;}
+  .plate-tick{stroke:var(--accent-dim); stroke-width:1; opacity:.6;}
+  .plate-tick.major{stroke:var(--accent-2); stroke-width:1.4; opacity:.85;}
+  #coreSvg.thinking .core-disc{filter:hue-rotate(40deg) saturate(1.2);}
+  #coreSvg.speaking .core-disc{filter:hue-rotate(15deg) saturate(1.5) brightness(1.1);}
+  #coreSvg.error .core-disc{filter:hue-rotate(-40deg) saturate(1.8) brightness(.85);}
+  .spin-slow{animation:spin 18s linear infinite;}
+  .spin-rev{animation:spin 26s linear infinite reverse;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .pulse{animation:pulse 2.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:.8;}}
+
+  .core-label{
+    text-align:center; font-family:'Orbitron',sans-serif;
+    font-size:11px; letter-spacing:3px; color:var(--text-dim);
+    margin-top:-6px; height:16px;
+  }
+
+  /* ---------- transcript ---------- */
+  .log{
+    flex:1 1 auto;
+    overflow-y:auto;
+    margin:10px 0;
+    padding:14px;
+    background:linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2));
+    border:1px solid var(--line);
+    border-radius:10px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .log::-webkit-scrollbar{width:6px;}
+  .log::-webkit-scrollbar-thumb{background:var(--accent-dim); border-radius:3px;}
+  .log-empty{
+    margin:auto; text-align:center; color:var(--text-dim);
+    font-size:14px; letter-spacing:.5px; max-width:280px; line-height:1.5;
+  }
+  .msg{max-width:88%; font-size:15px; line-height:1.4;}
+  .msg .who{
+    font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:2px;
+    margin-bottom:3px; display:block;
+  }
+  .msg.user{align-self:flex-end; text-align:right;}
+  .msg.user .who{color:var(--text-dim);}
+  .msg.user .bubble{background:#2a140c; border:1px solid var(--line); border-radius:10px 10px 2px 10px; padding:8px 12px; display:inline-block;}
+  .msg.ai{align-self:flex-start;}
+  .msg.ai .who{color:var(--accent);}
+  .msg.ai .bubble{background:rgba(255,50,39,.08); border:1px solid var(--accent-dim); border-radius:10px 10px 10px 2px; padding:8px 12px; display:inline-block;}
+  .msg.sys .bubble{color:var(--text-dim); font-style:italic; font-size:13px;}
+  .link-chip{
+    display:inline-block; margin-top:4px; padding:7px 14px;
+    border:1px solid var(--accent); border-radius:16px;
+    color:var(--accent); text-decoration:none; font-size:13px; font-style:normal;
+    background:rgba(255,50,39,.08);
+  }
+  .gen-image{
+    max-width:100%; border-radius:10px; border:1px solid var(--line);
+    display:block; margin-top:4px;
+  }
+  .gen-video{
+    max-width:100%; border-radius:10px; border:1px solid var(--line);
+    display:block; margin-top:4px; background:#000;
+  }
+  .btn-secondary{
+    background:var(--bg-panel-2); border:1px solid var(--accent-dim); color:var(--accent);
+    border-radius:8px; padding:8px 14px; font-family:'Rajdhani',sans-serif; font-size:14px;
+    font-weight:600; cursor:pointer; margin-right:8px; margin-top:4px;
+  }
+  .btn-secondary:active{ background:var(--accent-dim); color:var(--text); }
+  .camera-preview{
+    position:relative; margin-bottom:10px; border-radius:10px; overflow:hidden;
+    border:1px solid var(--line); background:#000;
+  }
+  .camera-preview video{ width:100%; display:block; max-height:220px; object-fit:cover; }
+  .cam-close{
+    position:absolute; top:6px; right:6px; width:28px; height:28px; border-radius:50%;
+    background:rgba(0,0,0,.6); color:#fff; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:14px;
+  }
+
+  /* ---------- controls ---------- */
+  .controls{
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    padding-top:4px;
+  }
+  .mic-btn{
+    width:64px;height:64px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #3a160c, var(--bg-panel));
+    border:1px solid var(--accent-dim);
+    color:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer; position:relative;
+    transition:all .2s;
+  }
+  .mic-btn svg{width:24px;height:24px;}
+  .mic-btn.on{
+    border-color:var(--accent); box-shadow:0 0 22px rgba(255,50,39,.5);
+    color:#1a0500; background:var(--accent);
+  }
+  .mic-btn.on::after{
+    content:''; position:absolute; inset:-6px; border-radius:50%;
+    border:1px solid var(--accent); opacity:.5; animation:ripple 1.6s ease-out infinite;
+  }
+  @keyframes ripple{0%{transform:scale(.9); opacity:.6;}100%{transform:scale(1.4); opacity:0;}}
+  .mode-label{
+    font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1.5px;
+    color:var(--text-dim); text-align:center; max-width:130px; line-height:1.6;
+  }
+  .mode-label b{color:var(--accent); display:block; font-size:11px;}
+
+  /* ---------- input testuale di fallback (browser senza Web Speech API) ---------- */
+  .text-fallback{
+    display:flex; align-items:center; gap:10px; margin-top:12px;
+  }
+  .text-fallback input{
+    flex:1; background:var(--bg-panel); border:1px solid var(--line);
+    color:var(--text); border-radius:20px; padding:10px 16px;
+    font-family:'Rajdhani',sans-serif; font-size:14px; outline:none;
+  }
+  .text-fallback input:focus{border-color:var(--accent-dim);}
+  .send-btn{
+    width:38px;height:38px;border-radius:50%; flex-shrink:0;
+    background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .send-btn svg{width:17px;height:17px;}
+  .attach-btn{
+    width:38px;height:38px;border-radius:50%; flex-shrink:0;
+    background:var(--bg-panel); border:1px solid var(--line); color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .attach-btn:active{border-color:var(--accent-dim); color:var(--accent);}
+  .attach-btn svg{width:16px;height:16px;}
+  .timer-count{color:var(--accent);}
+
+  /* ---------- settings drawer ---------- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(10,3,2,.65);
+    opacity:0; pointer-events:none; transition:opacity .25s; z-index:5;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:absolute; top:0; right:0; height:100%; width:86%; max-width:340px;
+    background:#150a06; border-left:1px solid var(--line);
+    transform:translateX(100%); transition:transform .3s ease; z-index:6;
+    padding:20px 18px; overflow-y:auto;
+  }
+  .drawer.show{transform:translateX(0);}
+  .drawer h2{
+    font-family:'Orbitron',sans-serif; font-size:14px; letter-spacing:2px;
+    color:var(--accent); margin:0 0 18px;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13px; letter-spacing:.5px; color:var(--text-dim); margin-bottom:6px;
+  }
+  .field input[type=text], .field select, .field textarea{
+    width:100%; background:var(--bg-panel); border:1px solid var(--line);
+    color:var(--text); border-radius:6px; padding:9px 10px; font-family:'Rajdhani',sans-serif;
+    font-size:14px;
+  }
+  .field textarea{min-height:70px; resize:vertical;}
+  .field input[type=range]{width:100%;}
+  .switch{
+    width:40px;height:22px;border-radius:11px;background:var(--bg-panel);
+    border:1px solid var(--line); position:relative; cursor:pointer; flex-shrink:0;
+  }
+  .switch::after{
+    content:''; position:absolute; top:2px; left:2px; width:16px;height:16px;border-radius:50%;
+    background:var(--text-dim); transition:all .2s;
+  }
+  .switch.on{border-color:var(--accent);}
+  .switch.on::after{left:20px; background:var(--accent);}
+  .hint{font-size:11px; color:var(--text-dim); line-height:1.5; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+  .close-drawer{
+    position:absolute; top:16px; right:16px; width:28px;height:28px; border-radius:50%;
+    border:1px solid var(--line); background:var(--bg-panel); color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <header>
+    <div class="brand">NEBULA<small>ARC REACTOR · VOICE INTERFACE</small></div>
+    <div class="head-right">
+      <div class="mk-badge">N·01</div>
+      <div class="status-pill" id="statusPill">INATTIVO</div>
+      <div class="gear" id="gearBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <div class="arc-reactor-wrap" id="arcReactorWrap" title="Reattore Arc">
+    <svg viewBox="0 0 100 100" class="arc-spin">
+      <defs>
+        <filter id="arcGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="1.8" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <g filter="url(#arcGlow)" fill="none">
+        <circle cx="50" cy="50" r="46" stroke="var(--accent-2)" stroke-width="2"/>
+        <circle cx="50" cy="50" r="36" stroke="var(--accent)" stroke-width="1.4"/>
+        <g stroke="var(--accent)" stroke-width="1.6">
+          <line x1="80" y1="50" x2="86" y2="50"/>
+          <line x1="71.2" y1="71.2" x2="75.5" y2="75.5"/>
+          <line x1="50" y1="80" x2="50" y2="86"/>
+          <line x1="28.8" y1="71.2" x2="24.5" y2="75.5"/>
+          <line x1="20" y1="50" x2="14" y2="50"/>
+          <line x1="28.8" y1="28.8" x2="24.5" y2="24.5"/>
+          <line x1="50" y1="20" x2="50" y2="14"/>
+          <line x1="71.2" y1="28.8" x2="75.5" y2="24.5"/>
+        </g>
+        <circle cx="50" cy="50" r="22" stroke="var(--accent-2)" stroke-width="1.8"/>
+        <circle cx="50" cy="50" r="12" fill="var(--accent-3)" stroke="none"/>
+        <circle cx="50" cy="50" r="5" fill="#fff" opacity=".85" stroke="none"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="core-wrap">
+    <svg id="coreSvg" viewBox="0 0 200 200">
+      <defs>
+        <radialGradient id="coreGrad" cx="50%" cy="45%" r="60%">
+          <stop offset="0%" stop-color="var(--accent-3)"/>
+          <stop offset="35%" stop-color="var(--accent)"/>
+          <stop offset="100%" stop-color="var(--bg-panel-2)"/>
+        </radialGradient>
+        <filter id="neonGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.4" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <g class="spin-rev">
+        <circle class="ring ring-outer" cx="100" cy="100" r="94"/>
+      </g>
+      <g class="spin-slow">
+        <circle class="ring ring-mid" cx="100" cy="100" r="80"/>
+      </g>
+      <g id="tickGroup"></g>
+      <g id="barGroup"></g>
+      <circle class="core-disc pulse" cx="100" cy="100" r="46"/>
+      <!-- occhio stilizzato in stile neon, con iride a "diaframma fotografico" -->
+      <g class="neon-eye" filter="url(#neonGlow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M54,100 Q100,62 146,100 Q100,138 54,100 Z" stroke="var(--accent-2)" stroke-width="2.6"/>
+        <circle cx="100" cy="100" r="23" stroke="var(--accent)" stroke-width="2.2"/>
+        <g stroke="var(--accent)" stroke-width="1.3">
+          <line x1="100" y1="79" x2="100" y2="88"/>
+          <line x1="115" y1="85" x2="110" y2="92"/>
+          <line x1="121" y1="100" x2="111" y2="100"/>
+          <line x1="115" y1="115" x2="110" y2="108"/>
+          <line x1="100" y1="121" x2="100" y2="112"/>
+          <line x1="85" y1="115" x2="90" y2="108"/>
+          <line x1="79" y1="100" x2="89" y2="100"/>
+          <line x1="85" y1="85" x2="90" y2="92"/>
+        </g>
+        <circle cx="100" cy="100" r="10" fill="var(--accent-dim)" stroke="var(--accent-2)" stroke-width="1.2"/>
+        <circle cx="96" cy="96" r="2.6" fill="var(--accent-3)"/>
+      </g>
+    </svg>
+  </div>
+  <div class="core-label" id="coreLabel">dì "Nebula" per iniziare</div>
+
+  <div class="log" id="log">
+    <div class="log-empty" id="logEmpty">Il registro della conversazione comparirà qui.<br>Premi il microfono oppure attiva l'ascolto continuo dalle impostazioni.</div>
+  </div>
+
+  <div class="controls">
+    <div class="mode-label" id="modeLabel"><b>MANUALE</b>tocca per parlare</div>
+    <div class="mic-btn" id="micBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+    </div>
+    <div style="width:130px"></div>
+  </div>
+
+  <div class="camera-preview" id="cameraPreview" style="display:none;">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <div class="cam-close" id="cameraCloseBtn">✕</div>
+  </div>
+
+  <div class="text-fallback" id="textFallback">
+    <div class="attach-btn" id="attachBtn" title="Allega un file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3 3 0 014.24 4.24l-8.49 8.48a1 1 0 01-1.41-1.41l7.78-7.78"/></svg>
+    </div>
+    <div class="attach-btn" id="cameraBtn" title="Fotocamera">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".txt,.md,.csv,.json,.log,.js,.ts,.py,.html,.css,.xml,.yaml,.yml,.pdf,application/pdf,.docx,.xlsx,.xls,image/*,text/*" style="display:none">
+    <input type="text" id="textInput" placeholder="Scrivi un messaggio…" autocomplete="off">
+    <div class="send-btn" id="sendBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="drawer" id="drawer">
+    <div class="close-drawer" id="closeDrawer">✕</div>
+    <h2>IMPOSTAZIONI</h2>
+
+    <div class="field">
+      <label>Ascolto sempre attivo <div class="switch" id="swAlways"></div></label>
+    </div>
+    <div class="field">
+      <label>Richiede parola d'attivazione <div class="switch" id="swWake"></div></label>
+    </div>
+    <div class="field">
+      <label>Parola d'attivazione</label>
+      <input type="text" id="wakeWord" value="nebula">
+    </div>
+    <div class="field">
+      <label>Lingua riconoscimento</label>
+      <select id="langSel">
+        <option value="it-IT">Italiano</option>
+        <option value="en-US">English (US)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Voce di risposta</label>
+      <select id="voiceSel"></select>
+    </div>
+    <div class="field">
+      <label>Personalità / istruzioni</label>
+      <textarea id="personality">Sei Nebula, l'assistente vocale personale dell'utente. Rispondi sempre in italiano, in modo colloquiale, con un tocco di arguzia british-butler ma senza esagerare. Sii conciso: 1-3 frasi, salvo quando l'utente chiede esplicitamente più dettagli.</textarea>
+    </div>
+    <div class="field">
+      <label>Groq API key</label>
+      <input type="text" id="groqKey" placeholder="gsk_...">
+    </div>
+    <div class="field">
+      <label>Modello Groq</label>
+      <select id="groqModel">
+        <option value="openai/gpt-oss-20b">GPT-OSS 20B (veloce)</option>
+        <option value="openai/gpt-oss-120b">GPT-OSS 120B (più potente)</option>
+        <option value="groq/compound-mini">Compound Mini (con ricerca web)</option>
+        <option value="groq/compound">Compound (con ricerca web, più lento)</option>
+      </select>
+    </div>
+
+    <div class="hint">
+      Il riconoscimento vocale usa la Web Speech API del browser (gratuita, funziona meglio su Chrome/Edge sia desktop che Android). Le risposte vengono generate chiamando l'API di Groq: inserisci qui la tua chiave (creala gratis su console.groq.com). La chiave resta salvata sul dispositivo (localStorage del browser) e viene inviata solo alle API di Groq.<br><br>
+      <b>Su Android:</b> ospita questi file (index.html, manifest.json, sw.js, icon-192.png, icon-512.png) su un sito HTTPS (es. GitHub Pages), apri il sito in Chrome e scegli "Aggiungi a schermata Home". Una volta installata, l'app si apre a schermo intero come una vera app, il permesso microfono resta valido stabilmente e la chiave API non si perde più tra un avvio e l'altro.<br><br>
+      <b>Browser senza riconoscimento vocale</b> (es. Samsung Internet, Firefox Android): usa il campo di testo in basso per scrivere a JARVIS, la risposta vocale funziona comunque.<br><br>
+      In ascolto continuo, l'app richiede il "wake lock" per evitare che lo schermo si spenga durante l'attesa della parola d'attivazione. Su Android il visualizzatore ad onde è disattivato per non entrare in conflitto con il microfono del riconoscimento vocale — la sfera comunque "respira" con un'animazione.<br><br>
+      <b>Allegati:</b> tocca l'icona 📎 accanto al campo di testo per allegare file di testo (.txt, .md, .csv, .json, codice…), PDF, Word (.docx), Excel (.xlsx/.xls) o immagini: JARVIS estrae il contenuto (dalle immagini legge solo il testo eventualmente scritto al loro interno, tramite OCR — non "vede" il resto dell'immagine) e lo tiene a mente per rispondere alle tue domande.<br><br>
+      <b>Generazione immagini:</b> di' o scrivi "genera un'immagine di un gatto astronauta" (funziona anche senza chiave API, servizio gratuito Pollinations.ai).<br><br>
+      <b>Apertura siti "in autonomia":</b> l'app prova sempre ad aprire il link da sola. Se parte da un tocco (es. hai scritto il messaggio), spesso ci riesce. Se il comando arriva dalla voce, il browser Android per sicurezza blocca l'apertura automatica non richiesta da un tocco diretto — in quel caso comparirà comunque un link cliccabile in chat, basta toccarlo.<br><br>
+      <b>Timer:</b> di' o scrivi "metti un timer di 5 minuti" (funziona anche senza chiave API). Allo scadere sentirai un suono e (su mobile) una vibrazione — ma solo se l'app resta aperta in primo piano: i browser sospendono i timer quando l'app va in background per molto tempo, quindi non sostituisce una sveglia reale.<br><br>
+      <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/...", "genera un'immagine di...", "metti un timer di..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche, analisi di file) serve la chiave API.<br><br>
+      <b>Tema colore:</b> cambialo manualmente in ogni momento dal menù "Tema colore" qui sopra, indipendentemente dal portale — la sfera centrale (l'occhio stilizzato) si adatta sempre ai colori del tema attivo.<br><br>
+      <b>Fotocamera:</b> tocca l'icona 📷 accanto al campo di testo per attivarla (usa la camera posteriore). Con la fotocamera attiva, ogni domanda che fai — a voce o scrivendo — viene inviata insieme al fotogramma inquadrato in quel momento a un modello Groq con supporto immagini (qwen/qwen3.6-27b, indipendente dal modello scelto sopra). Mentre è attiva, i comandi rapidi locali (ora, timer, ecc.) sono disattivati: tutto passa dall'analisi visiva. Tocca la ✕ sul riquadro video per spegnerla.<br><br>
+      <b>Generazione video:</b> di' o scrivi "genera un video di un drago che vola tra le nuvole" (gratuito, senza chiave API, stesso servizio usato per le immagini). La generazione richiede più tempo — anche 1-2 minuti — ed essendo un servizio gratuito può occasionalmente fallire: se succede, riprova.
+    </div>
+
+    <div class="field">
+      <label>Tema colore (manuale)</label>
+      <select id="themeSel">
+        <option value="default">Predefinito (rosso JARVIS)</option>
+        <option value="fire">🔥 Fuoco</option>
+        <option value="water">💧 Acqua</option>
+        <option value="air">💨 Aria</option>
+        <option value="earth">🪨 Terra</option>
+        <option value="life">🌿 Vita</option>
+        <option value="magic">✨ Magia</option>
+        <option value="tech">⚙️ Tech</option>
+        <option value="undead">👻 Non-morti</option>
+      </select>
+    </div>
+
+    <div class="field" id="portalSection">
+      <label>Portale Skylanders (sperimentale — solo PC/desktop)</label>
+      <div class="hint" style="margin-bottom:8px;">
+        Legge le figure Skylanders appoggiate sul Portal of Power originale via USB, usando la stessa tecnica (WebHID) del gioco che abbiamo sviluppato. <b>Funziona solo su Chrome/Edge desktop</b>: Android non supporta ancora questa API del browser, quindi su telefono questa sezione resta disattivata. Il riconoscimento è basato su documentazione di reverse-engineering non ufficiale e non testato su hardware reale da parte mia: se qualcosa non torna, il log qui sotto mostra i byte grezzi ricevuti dal portale per aiutarti a correggere gli indirizzi/ID nel codice.
+      </div>
+      <button type="button" id="portalConnectBtn" class="btn-secondary">Connetti portale</button>
+      <button type="button" id="portalResetBtn" class="btn-secondary">Ripristina tema</button>
+      <div id="portalStatus" style="margin-top:8px; font-size:13px; color:var(--text-dim);">Non connesso.</div>
+      <pre id="portalLog" style="margin-top:8px; max-height:120px; overflow-y:auto; font-size:11px; background:var(--bg-panel-2); border:1px solid var(--line); border-radius:8px; padding:8px; white-space:pre-wrap;"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const statusPill = $('statusPill'), coreSvg = $('coreSvg'), coreLabel = $('coreLabel');
+  const micBtn = $('micBtn'), modeLabel = $('modeLabel'), logEl = $('log'), logEmpty = $('logEmpty');
+  const gearBtn = $('gearBtn'), closeDrawer = $('closeDrawer'), overlay = $('overlay'), drawer = $('drawer');
+  const swAlways = $('swAlways'), swWake = $('swWake'), wakeWordInput = $('wakeWord'), langSel = $('langSel');
+  const voiceSel = $('voiceSel'), personalityBox = $('personality'), barGroup = $('barGroup');
+  const groqKeyInput = $('groqKey'), groqModelSel = $('groqModel');
+  const themeSel = $('themeSel');
+  const textFallback = $('textFallback'), textInput = $('textInput'), sendBtn = $('sendBtn');
+  const attachBtn = $('attachBtn'), fileInput = $('fileInput');
+  const cameraBtn = $('cameraBtn'), cameraPreview = $('cameraPreview'), cameraVideo = $('cameraVideo'), cameraCloseBtn = $('cameraCloseBtn');
+
+  let settings = {
+    alwaysOn:false, wakeRequired:true, wakeWord:'nebula',
+    lang:'it-IT', voiceURI:null, personality: personalityBox.value,
+    groqApiKey:'', groqModel:'openai/gpt-oss-20b', theme:'default'
+  };
+
+  // ---------- persistence (localStorage: funziona su qualsiasi browser/dispositivo, PC e Android) ----------
+  async function loadSettings(){
+    try{
+      const raw = localStorage.getItem('jarvis-settings');
+      if(raw){
+        const s = JSON.parse(raw);
+        settings = Object.assign(settings, s);
+      }
+      // migrazione: i vecchi modelli llama-3.3-70b-versatile / llama-3.1-8b-instant / gemma2-9b-it
+      // sono passati a piano Enterprise su Groq e non sono più utilizzabili con chiave developer
+      const deprecated = ['llama-3.3-70b-versatile','llama-3.1-8b-instant','gemma2-9b-it'];
+      if(deprecated.includes(settings.groqModel)) settings.groqModel = 'openai/gpt-oss-20b';
+    }catch(e){ /* nessuna impostazione salvata ancora, o storage non disponibile */ }
+    applySettingsToUI();
+  }
+  async function saveSettings(){
+    try{ localStorage.setItem('jarvis-settings', JSON.stringify(settings)); }catch(e){}
+  }
+  function applySettingsToUI(){
+    swAlways.classList.toggle('on', settings.alwaysOn);
+    swWake.classList.toggle('on', settings.wakeRequired);
+    wakeWordInput.value = settings.wakeWord;
+    langSel.value = settings.lang;
+    personalityBox.value = settings.personality;
+    groqKeyInput.value = settings.groqApiKey || '';
+    groqModelSel.value = settings.groqModel || 'openai/gpt-oss-20b';
+    if(themeSel){ themeSel.value = settings.theme || 'default'; }
+    applyElementTheme(settings.theme && settings.theme !== 'default' ? settings.theme : '__default__');
+    updateModeLabel();
+  }
+  function updateModeLabel(){
+    if(settings.alwaysOn){
+      modeLabel.innerHTML = settings.wakeRequired
+        ? '<b>ASCOLTO CONTINUO</b>attende "'+settings.wakeWord+'"'
+        : '<b>ASCOLTO CONTINUO</b>risponde a tutto';
+    } else {
+      modeLabel.innerHTML = '<b>MANUALE</b>tocca per parlare';
+    }
+  }
+
+  // ---------- drawer ----------
+  gearBtn.onclick = ()=>{ drawer.classList.add('show'); overlay.classList.add('show'); };
+  function hideDrawer(){ drawer.classList.remove('show'); overlay.classList.remove('show'); }
+  closeDrawer.onclick = hideDrawer; overlay.onclick = hideDrawer;
+  swAlways.onclick = ()=>{ settings.alwaysOn = !settings.alwaysOn; applySettingsToUI(); saveSettings(); syncListening(); };
+  swWake.onclick = ()=>{ settings.wakeRequired = !settings.wakeRequired; applySettingsToUI(); saveSettings(); };
+  wakeWordInput.onchange = ()=>{ settings.wakeWord = wakeWordInput.value.trim().toLowerCase()||'jarvis'; applySettingsToUI(); saveSettings(); };
+  langSel.onchange = ()=>{ settings.lang = langSel.value; saveSettings(); restartRecognitionIfNeeded(); };
+  personalityBox.onchange = ()=>{ settings.personality = personalityBox.value; saveSettings(); };
+  voiceSel.onchange = ()=>{ settings.voiceURI = voiceSel.value; saveSettings(); };
+  groqKeyInput.onchange = ()=>{ settings.groqApiKey = groqKeyInput.value.trim(); saveSettings(); };
+  groqModelSel.onchange = ()=>{ settings.groqModel = groqModelSel.value; saveSettings(); };
+  themeSel.onchange = ()=>{
+    settings.theme = themeSel.value;
+    applyElementTheme(settings.theme !== 'default' ? settings.theme : '__default__');
+    saveSettings();
+  };
+
+  function populateVoices(){
+    const voices = speechSynthesis.getVoices();
+    voiceSel.innerHTML='';
+    voices.forEach(v=>{
+      const o=document.createElement('option');
+      o.value=v.voiceURI; o.textContent=v.name+' ('+v.lang+')';
+      if(v.voiceURI===settings.voiceURI) o.selected=true;
+      voiceSel.appendChild(o);
+    });
+  }
+  speechSynthesis.onvoiceschanged = populateVoices;
+  populateVoices();
+
+  // ---------- state / core visual ----------
+  function setState(state, label){
+    coreSvg.className = state;
+    statusPill.className = 'status-pill '+ (state==='idle'?'':state);
+    const map = {idle:'INATTIVO', listening:'IN ASCOLTO', thinking:'ELABORAZIONE', speaking:'RISPOSTA', error:'ERRORE'};
+    statusPill.textContent = map[state]||state.toUpperCase();
+    coreLabel.textContent = label || '';
+    micBtn.classList.toggle('on', state==='listening');
+  }
+  setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+
+  // radial bars (visualizzatore audio)
+  const N_BARS = 40, bars=[];
+  for(let i=0;i<N_BARS;i++){
+    const angle = (i/N_BARS)*Math.PI*2;
+    const bar = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bar.setAttribute('class','bar');
+    bar.setAttribute('width','2.4');
+    bar.setAttribute('height','6');
+    bar.setAttribute('x',100+62*Math.cos(angle));
+    bar.setAttribute('y',100+62*Math.sin(angle));
+    bar.setAttribute('transform', 'rotate('+(angle*180/Math.PI+90)+' '+(100+62*Math.cos(angle))+' '+(100+62*Math.sin(angle))+')');
+    bar.dataset.angle = angle;
+    barGroup.appendChild(bar);
+    bars.push(bar);
+  }
+
+  // anello a piastre segmentate (estetica armatura Mark 85)
+  const tickGroup = $('tickGroup');
+  const N_TICKS = 72;
+  for(let i=0;i<N_TICKS;i++){
+    const angle = (i/N_TICKS)*Math.PI*2;
+    const r1 = 96, r2 = (i%6===0) ? 90 : 93; // ogni 6a tacca più lunga, come una giuntura di piastra
+    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
+    tick.setAttribute('x1', 100+r1*Math.cos(angle));
+    tick.setAttribute('y1', 100+r1*Math.sin(angle));
+    tick.setAttribute('x2', 100+r2*Math.cos(angle));
+    tick.setAttribute('y2', 100+r2*Math.sin(angle));
+    tick.setAttribute('class', i%6===0 ? 'plate-tick major' : 'plate-tick');
+    tickGroup.appendChild(tick);
+  }
+  let analyser=null, audioData=null, rafId=null;
+  // su Android Chrome un secondo accesso al microfono (getUserMedia) in parallelo al
+  // riconoscimento vocale nativo spesso causa conflitti: il sistema operativo concede l'uso
+  // esclusivo del microfono a un solo "consumatore" per volta, e la voce smette di funzionare.
+  // Per questo il visualizzatore ad onde audio reali viene attivato solo su desktop;
+  // su Android la sfera continua comunque a "respirare" con l'animazione CSS.
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  async function startVisualizer(){
+    if(isAndroid) return;
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      src.connect(analyser);
+      audioData = new Uint8Array(analyser.frequencyBinCount);
+      drawBars();
+    }catch(e){ /* microfono non disponibile per il visualizzatore, non blocca l'assistente */ }
+  }
+  function drawBars(){
+    rafId = requestAnimationFrame(drawBars);
+    if(!analyser) return;
+    analyser.getByteFrequencyData(audioData);
+    bars.forEach((bar,i)=>{
+      const v = audioData[i % audioData.length]/255;
+      const len = 5 + v*26;
+      const angle = parseFloat(bar.dataset.angle);
+      bar.setAttribute('height', len);
+      bar.setAttribute('x', 100+62*Math.cos(angle));
+      bar.setAttribute('y', 100+62*Math.sin(angle) - len/2 + 3);
+    });
+  }
+
+  // ---------- transcript log ----------
+  function addMsg(who, text){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg ' + who;
+    div.innerHTML = '<span class="who">'+({user:'TU', ai:'JARVIS', sys:'SISTEMA'}[who])+'</span><span class="bubble"></span>';
+    div.querySelector('.bubble').textContent = text;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // ---------- speech recognition ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition=null, manualActive=false, shouldRun=false, restartTimer=null;
+  let transcriptBuffer='', silenceTimer=null;
+  const SILENCE_MS = 900; // pausa di silenzio richiesta prima di considerare la frase conclusa
+
+  if(!SR){
+    setState('error','Riconoscimento vocale non supportato in questo browser');
+    addMsg('sys','Il tuo browser non supporta il riconoscimento vocale (capita spesso su Samsung Internet, Firefox Android, ecc.). Usa il campo di testo qui sotto per parlare comunque con JARVIS, oppure passa a Chrome/Edge.');
+    micBtn.style.opacity = '.35';
+    micBtn.style.pointerEvents = 'none';
+  } else {
+    initRecognition();
+    startVisualizer();
+  }
+
+  // ---------- input testuale (fallback o semplicemente comodo, es. su PC) ----------
+  function sendTextMessage(){
+    const val = textInput.value.trim();
+    if(!val || busy) return;
+    textInput.value = '';
+    // il testo digitato bypassa sempre la parola d'attivazione: è già un comando esplicito
+    processCommand(val);
+  }
+  sendBtn.onclick = sendTextMessage;
+  textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendTextMessage(); });
+
+  // ---------- fotocamera: analisi visiva tramite modello Groq con supporto immagini ----------
+  let cameraStream = null;
+  cameraBtn.onclick = ()=> cameraStream ? stopCamera() : startCamera();
+  cameraCloseBtn.onclick = stopCamera;
+
+  async function startCamera(){
+    try{
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
+      cameraVideo.srcObject = cameraStream;
+      cameraPreview.style.display = 'block';
+      cameraBtn.style.color = 'var(--accent)';
+      addMsg('sys', '📷 Fotocamera attiva: fai una domanda (a voce o scrivendo) su quello che inquadri, JARVIS guarderà il fotogramma corrente. Mentre è attiva, i comandi rapidi locali sono disattivati.');
+    }catch(e){
+      addMsg('sys', 'Impossibile accedere alla fotocamera: '+e.message);
+    }
+  }
+  function stopCamera(){
+    if(cameraStream){ cameraStream.getTracks().forEach(t=>t.stop()); cameraStream = null; }
+    cameraPreview.style.display = 'none';
+    cameraBtn.style.color = '';
+  }
+  function captureFrameDataUrl(){
+    const canvas = document.createElement('canvas');
+    canvas.width = cameraVideo.videoWidth || 640;
+    canvas.height = cameraVideo.videoHeight || 480;
+    canvas.getContext('2d').drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.7);
+  }
+  async function askGroqVision(question, imageDataUrl){
+    if(!settings.groqApiKey) throw new Error('Chiave API Groq mancante. Aggiungila dalle impostazioni.');
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+settings.groqApiKey },
+      body: JSON.stringify({
+        model:'qwen/qwen3.6-27b',
+        max_tokens:400,
+        messages:[
+          { role:'system', content: settings.personality },
+          { role:'user', content:[
+            { type:'text', text: question },
+            { type:'image_url', image_url:{ url: imageDataUrl } }
+          ]}
+        ]
+      })
+    });
+    if(!res.ok){
+      let detail=''; try{ const eb=await res.json(); detail = eb?.error?.message ? ' - '+eb.error.message : ''; }catch(e){}
+      throw new Error('HTTP '+res.status+detail);
+    }
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content || '...';
+  }
+
+  // ---------- allegati: lettura e analisi di file (testo e PDF) ----------
+  const MAX_FILE_CHARS = 15000;
+  attachBtn.onclick = ()=> fileInput.click();
+  fileInput.addEventListener('change', async ()=>{
+    const files = Array.from(fileInput.files || []);
+    fileInput.value = '';
+    for(const f of files){ await handleFileAttachment(f); }
+  });
+
+  async function handleFileAttachment(file){
+    addMsg('sys', `📎 Leggo "${file.name}"…`);
+    try{
+      let text = await extractFileText(file);
+      text = (text || '').replace(/\r/g,'').trim();
+      let truncNote = '';
+      if(text.length > MAX_FILE_CHARS){
+        text = text.slice(0, MAX_FILE_CHARS);
+        truncNote = ` (troncato ai primi ${MAX_FILE_CHARS} caratteri)`;
+      }
+      if(!text){
+        addMsg('sys', `Non sono riuscito a estrarre testo leggibile da "${file.name}".`);
+        return;
+      }
+      history.push({ role:'user', content:`[File allegato dall'utente: ${file.name}${truncNote}]\n\n${text}` });
+      addMsg('sys', `✅ Ho letto "${file.name}" (${text.length} caratteri${truncNote}). Chiedimi pure cosa vuoi sapere a riguardo.`);
+    }catch(e){
+      addMsg('sys', `Errore leggendo "${file.name}": ${e.message}`);
+    }
+  }
+
+  // ---------- librerie esterne caricate solo al bisogno (non appesantiscono l'avvio) ----------
+  const libLoaders = {};
+  function loadScriptOnce(key, src){
+    if(!libLoaders[key]){
+      libLoaders[key] = new Promise((resolve, reject)=>{
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = ()=>resolve();
+        s.onerror = ()=>reject(new Error('impossibile caricare una libreria esterna, verifica la connessione'));
+        document.head.appendChild(s);
+      });
+    }
+    return libLoaders[key];
+  }
+
+  function ensurePdfJs(){
+    return loadScriptOnce('pdfjs', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js').then(()=>{
+      window['pdfjs-dist/build/pdf'].GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    });
+  }
+  async function ensureMammoth(){
+    await loadScriptOnce('mammoth', 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js');
+    return window.mammoth;
+  }
+  async function ensureXLSX(){
+    await loadScriptOnce('xlsx', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    return window.XLSX;
+  }
+  async function ensureTesseract(){
+    await loadScriptOnce('tesseract', 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+    return window.Tesseract;
+  }
+
+  async function extractPdfText(file){
+    await ensurePdfJs();
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    const buf = await file.arrayBuffer();
+    const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    const maxPages = Math.min(doc.numPages, 40);
+    for(let p=1; p<=maxPages; p++){
+      const page = await doc.getPage(p);
+      const content = await page.getTextContent();
+      text += content.items.map(it=>it.str).join(' ') + '\n\n';
+    }
+    if(doc.numPages > maxPages) text += `\n[...documento troncato: mostrate solo le prime ${maxPages} pagine di ${doc.numPages} totali...]`;
+    return text;
+  }
+
+  // dispatcher: sceglie come estrarre il testo in base al tipo di file
+  async function extractFileText(file){
+    const name = file.name.toLowerCase();
+    if(file.type === 'application/pdf' || name.endsWith('.pdf')){
+      return await extractPdfText(file);
+    }
+    if(name.endsWith('.docx')){
+      const mammoth = await ensureMammoth();
+      const buf = await file.arrayBuffer();
+      const res = await mammoth.extractRawText({ arrayBuffer: buf });
+      return res.value;
+    }
+    if(name.endsWith('.xlsx') || name.endsWith('.xls')){
+      const XLSX = await ensureXLSX();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array' });
+      let out = '';
+      wb.SheetNames.forEach(sn=>{
+        out += `--- Foglio: ${sn} ---\n`;
+        out += XLSX.utils.sheet_to_csv(wb.Sheets[sn]) + '\n\n';
+      });
+      return out;
+    }
+    if(file.type.startsWith('image/')){
+      addMsg('sys', `🔎 Estraggo il testo eventualmente presente nell'immagine "${file.name}" (OCR)…`);
+      const Tesseract = await ensureTesseract();
+      const { data } = await Tesseract.recognize(file, 'ita+eng');
+      const ocrText = (data && data.text || '').trim();
+      return '[Nota: JARVIS non "vede" l\'immagine, ha solo letto il testo scritto al suo interno tramite OCR]\n\n' + (ocrText || '(nessun testo riconosciuto nell\'immagine)');
+    }
+    // fallback: prova come testo semplice
+    return await file.text();
+  }
+
+  function initRecognition(){
+    recognition = buildRecognition();
+  }
+
+  function buildRecognition(){
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = settings.lang;
+    r.maxAlternatives = 1;
+
+    r.onstart = ()=>{ setState('listening', 'in ascolto…'); };
+
+    r.onerror = (e)=>{
+      if(e.error==='not-allowed' || e.error==='service-not-allowed'){
+        setState('error','Permesso microfono negato');
+        addMsg('sys','Permesso al microfono negato. Su Android: tocca l\'icona (i) o il lucchetto accanto all\'indirizzo del sito in Chrome → Autorizzazioni → Microfono → Consenti, poi ricarica la pagina.');
+        shouldRun = false;
+        return;
+      }
+      if(e.error==='audio-capture'){
+        setState('error','Microfono non disponibile');
+        addMsg('sys','Il microfono non risulta disponibile: potrebbe essere in uso da un\'altra app (es. un\'altra scheda con videochiamata) sul telefono.');
+        shouldRun = false;
+        return;
+      }
+      // 'no-speech', 'network', 'aborted': normali durante l'uso su Android, gestiti dal riavvio automatico in onend
+    };
+
+    r.onend = ()=>{
+      recognition = null;
+      if(shouldRun){
+        // su Android Chrome il riconoscimento si interrompe da solo di frequente anche con continuous:true;
+        // lo ricreiamo da zero con un breve ritardo, invece di riusare la stessa istanza, per evitare
+        // errori "already started"/InvalidStateError tipici di quel browser
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(()=>{ if(shouldRun) startListening(); }, 350);
+      } else {
+        setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+      }
+    };
+
+    r.onresult = (event)=>{
+      let finalChunk='', interimChunk='';
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        if(event.results[i].isFinal) finalChunk += event.results[i][0].transcript;
+        else interimChunk += event.results[i][0].transcript;
+      }
+      if(finalChunk) transcriptBuffer += finalChunk;
+
+      // su Android ogni piccola pausa viene marcata come "isFinal" troppo presto: invece di rispondere
+      // subito, aspettiamo un breve momento di silenzio reale prima di considerare la frase conclusa,
+      // così l'utente ha il tempo di finire di parlare senza essere interrotto
+      clearTimeout(silenceTimer);
+      if(transcriptBuffer.trim() || interimChunk.trim()){
+        silenceTimer = setTimeout(()=>{
+          const text = transcriptBuffer.trim();
+          transcriptBuffer = '';
+          if(text) handleUtterance(text);
+        }, SILENCE_MS);
+      }
+    };
+
+    return r;
+  }
+
+  function restartRecognitionIfNeeded(){
+    const wasRunning = shouldRun;
+    shouldRun = false;
+    clearTimeout(restartTimer);
+    try{ if(recognition) recognition.stop(); }catch(e){}
+    recognition = null;
+    if(wasRunning) setTimeout(()=>startListening(), 250);
+  }
+
+  function startListening(){
+    shouldRun = true;
+    clearTimeout(restartTimer);
+    if(!recognition) recognition = buildRecognition();
+    try{
+      recognition.start();
+    }catch(e){
+      // istanza in stato incoerente (tipico su Android dopo riavvii ravvicinati): ne creiamo una nuova
+      try{ recognition = buildRecognition(); recognition.start(); }catch(e2){}
+    }
+  }
+  function stopListening(){
+    shouldRun = false;
+    clearTimeout(restartTimer);
+    clearTimeout(silenceTimer);
+    transcriptBuffer = '';
+    try{ if(recognition) recognition.stop(); }catch(e){}
+    setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+  }
+
+  // ---------- wake lock (evita che lo schermo si spenga durante l'ascolto continuo su mobile) ----------
+  let wakeLock = null;
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+      }
+    }catch(e){ /* non supportato o negato: l'app funziona comunque, ma lo schermo potrebbe spegnersi */ }
+  }
+  function releaseWakeLock(){
+    try{ if(wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){}
+  }
+  // se il browser (es. Chrome Android) sospende lo screen lock quando l'app va in background,
+  // lo richiediamo di nuovo appena l'utente torna sulla scheda/app
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible' && settings.alwaysOn) requestWakeLock();
+  });
+
+  function syncListening(){
+    if(settings.alwaysOn){ startListening(); requestWakeLock(); }
+    else { stopListening(); releaseWakeLock(); }
+  }
+
+  micBtn.onclick = ()=>{
+    if(settings.alwaysOn) return; // in modalità continua il pulsante è solo indicativo
+    if(shouldRun){ stopListening(); }
+    else { startListening(); }
+  };
+
+  // ---------- utterance handling ----------
+  let busy = false;
+  async function handleUtterance(text){
+    const lower = text.toLowerCase();
+    const wake = settings.wakeWord.toLowerCase();
+
+    if(settings.wakeRequired){
+      const idx = lower.indexOf(wake);
+      if(idx === -1) return; // parola d'attivazione non presente, ignora
+      // prende ciò che segue la wake word; se non c'è nulla dopo, aspetta la prossima frase come comando
+      let command = text.slice(idx+wake.length).replace(/^[\s,.:;-]+/,'').trim();
+      if(!command){ addMsg('sys','Ti ascolto…'); return; }
+      text = command;
+    }
+    processCommand(text);
+  }
+
+  async function processCommand(text){
+    if(busy) return;
+    busy = true;
+    addMsg('user', text);
+
+    // ---------- fotocamera attiva: la domanda va analizzata insieme al fotogramma inquadrato ----------
+    if(cameraStream){
+      setState('thinking','osservo l\'inquadratura…');
+      try{
+        const frame = captureFrameDataUrl();
+        const reply = await askGroqVision(text, frame);
+        addMsg('ai', reply);
+        await speak(reply);
+      }catch(err){
+        addMsg('sys','Errore nella richiesta: '+err.message);
+        setState('error','Errore');
+      }
+      busy = false;
+      if(shouldRun) setState('listening','in ascolto…');
+      else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+      return;
+    }
+
+    // ---------- comandi locali: rispondono subito senza passare dall'IA/Groq ----------
+    const localReply = await tryLocalCommand(text);
+    if(localReply !== null){
+      addMsg('ai', localReply);
+      await speak(localReply);
+      busy = false;
+      if(shouldRun) setState('listening','in ascolto…');
+      else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+      return;
+    }
+
+    setState('thinking','elaborazione…');
+    try{
+      const reply = await askGroq(text);
+      addMsg('ai', reply);
+      await speak(reply);
+    }catch(err){
+      addMsg('sys','Errore nella richiesta: '+err.message);
+      setState('error','Errore');
+    }
+    busy = false;
+    if(shouldRun) setState('listening','in ascolto…');
+    else setState('idle', 'dì "'+settings.wakeWord+'" per iniziare');
+  }
+
+  // ---------- comandi locali (nessuna IA/API necessaria) ----------
+  const SITE_MAP = {
+    'youtube':'https://www.youtube.com', 'you tube':'https://www.youtube.com',
+    'google':'https://www.google.com',
+    'gmail':'https://mail.google.com',
+    'whatsapp':'https://web.whatsapp.com', 'whats app':'https://web.whatsapp.com',
+    'instagram':'https://www.instagram.com',
+    'facebook':'https://www.facebook.com',
+    'twitter':'https://twitter.com', 'x':'https://twitter.com',
+    'github':'https://github.com',
+    'spotify':'https://open.spotify.com',
+    'netflix':'https://www.netflix.com',
+    'wikipedia':'https://it.wikipedia.org',
+    'amazon':'https://www.amazon.it',
+    'maps':'https://maps.google.com', 'mappe':'https://maps.google.com', 'google maps':'https://maps.google.com'
+  };
+
+  async function tryLocalCommand(rawText){
+    const text = rawText.toLowerCase().trim();
+
+    if(/che (ore sono|ora è|ora e)|dimmi l.ora/.test(text)){
+      const now = new Date();
+      return `Sono le ${now.getHours()} e ${now.getMinutes().toString().padStart(2,'0')}.`;
+    }
+
+    if(/che (giorno è|giorno e|data è|data e)|dimmi la data/.test(text)){
+      const now = new Date();
+      return 'Oggi è ' + now.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) + '.';
+    }
+
+    if(/dove (mi trovo|sono)|(la |)mia posizione|dammi la posizione/.test(text)){
+      if(!('geolocation' in navigator)) return 'Il tuo browser non supporta la geolocalizzazione.';
+      try{
+        const info = await executeTool('get_user_location', {});
+        if(info.citta) return `Ti trovi a ${info.citta}${info.regione ? ', '+info.regione : ''}${info.nazione ? ', '+info.nazione : ''}.`;
+        return `Ti trovi circa a latitudine ${info.latitudine.toFixed(4)} e longitudine ${info.longitudine.toFixed(4)}.`;
+      }catch(e){
+        return 'Non riesco a ottenere la tua posizione: ' + e.message;
+      }
+    }
+
+    const imgMatch = text.match(/^(?:genera|crea|disegna|fammi)\s+(?:un'?\s*)?(?:immagine|disegno|foto)\s+(?:di|con|che (?:raffigura|mostra))\s+(.+)/);
+    if(imgMatch){
+      const prompt = imgMatch[1].trim();
+      generateImage(prompt);
+      return `Ecco l'immagine di "${prompt}".`;
+    }
+
+    const vidMatch = text.match(/^(?:genera|crea|fammi)\s+(?:un\s+)?video\s+(?:di|con|che (?:raffigura|mostra))\s+(.+)/);
+    if(vidMatch){
+      const prompt = vidMatch[1].trim();
+      generateVideo(prompt);
+      return `Sto generando il video di "${prompt}", ci vorrà un minuto o due.`;
+    }
+
+    const timerMatch = text.match(/(?:metti|imposta|avvia|fai partire|crea)\s+(?:un\s+)?timer\s*(?:di|per)?\s*(\d+)\s*(secondi|secondo|minuti|minuto|ore|ora)(?:\s+(?:per|chiamato|con nome)\s+(.+))?/);
+    if(timerMatch){
+      const value = parseInt(timerMatch[1],10);
+      const unit = timerMatch[2];
+      const label = timerMatch[3] ? timerMatch[3].trim() : null;
+      let seconds = value;
+      if(unit.startsWith('minut')) seconds = value*60;
+      else if(unit.startsWith('or')) seconds = value*3600;
+      startTimer(seconds, label);
+      return `Timer di ${value} ${unit} avviato${label ? ' per '+label : ''}.`;
+    }
+
+    const openMatch = text.match(/^(?:apri|vai su|apri il sito|apri la pagina)\s+(.+)/);
+    if(openMatch){
+      let target = openMatch[1].trim().replace(/^(il |la |lo )/, '');
+      let url = SITE_MAP[target];
+      if(!url){
+        if(/^https?:\/\//i.test(target)) url = target;
+        else if(/^[\w-]+(\.[\w-]+)+/.test(target)) url = 'https://' + target.replace(/\s+/g,'');
+      }
+      if(url){
+        const opened = openOrShowLink(url, target);
+        return opened ? `Ho aperto ${target}.` : `Ecco il link per ${target}, toccalo per aprirlo (il browser ha bloccato l'apertura automatica).`;
+      }
+      return null; // non riconosciuto: lascia decidere all'IA
+    }
+
+    return null; // nessun comando locale corrisponde: passa alla IA (Groq)
+  }
+
+  // ---------- strumenti disponibili per JARVIS (eseguiti localmente nel browser) ----------
+  const TOOLS = [
+    {
+      type:'function',
+      function:{
+        name:'get_current_datetime',
+        description:'Restituisce la data e l\'ora attuali del dispositivo dell\'utente.',
+        parameters:{ type:'object', properties:{}, required:[] }
+      }
+    },
+    {
+      type:'function',
+      function:{
+        name:'get_user_location',
+        description:'Restituisce la posizione geografica attuale dell\'utente (città, regione, nazione, coordinate), chiedendo il permesso al browser se necessario.',
+        parameters:{ type:'object', properties:{}, required:[] }
+      }
+    },
+    {
+      type:'function',
+      function:{
+        name:'open_website',
+        description:'Apre un sito web in una nuova scheda. Se il browser blocca l\'apertura automatica (succede spesso quando la richiesta arriva da un comando vocale, per policy di sicurezza), mostra comunque un link cliccabile all\'utente.',
+        parameters:{
+          type:'object',
+          properties:{
+            url:{ type:'string', description:'URL completo da aprire, incluso https://' },
+            label:{ type:'string', description:'Breve etichetta descrittiva del link (es. nome del sito)' }
+          },
+          required:['url']
+        }
+      }
+    },
+    {
+      type:'function',
+      function:{
+        name:'set_timer',
+        description:'Avvia un timer/promemoria a tempo. Allo scadere, l\'app avvisa l\'utente con un suono, una vibrazione (su mobile) e un messaggio. Funziona in modo affidabile solo mentre l\'app resta aperta in primo piano.',
+        parameters:{
+          type:'object',
+          properties:{
+            seconds:{ type:'number', description:'Durata totale del timer in secondi' },
+            label:{ type:'string', description:'Etichetta opzionale del timer, es. "pasta" o "riunione"' }
+          },
+          required:['seconds']
+        }
+      }
+    },
+    {
+      type:'function',
+      function:{
+        name:'generate_image',
+        description:'Genera un\'immagine originale a partire da una descrizione testuale e la mostra in chat.',
+        parameters:{
+          type:'object',
+          properties:{
+            prompt:{ type:'string', description:'Descrizione dettagliata (preferibilmente in inglese, per risultati migliori) di cosa deve raffigurare l\'immagine' }
+          },
+          required:['prompt']
+        }
+      }
+    },
+    {
+      type:'function',
+      function:{
+        name:'generate_video',
+        description:'Genera un breve video originale a partire da una descrizione testuale e lo mostra in chat. La generazione richiede più tempo di un\'immagine (fino a 1-2 minuti) ed è un servizio gratuito, quindi può occasionalmente fallire o essere lento.',
+        parameters:{
+          type:'object',
+          properties:{
+            prompt:{ type:'string', description:'Descrizione dettagliata (preferibilmente in inglese) di cosa deve mostrare il video' }
+          },
+          required:['prompt']
+        }
+      }
+    }
+  ];
+
+  const TOOL_INSTRUCTIONS = 'Hai a disposizione strumenti per: conoscere data/ora attuali, conoscere la posizione dell\'utente, avviare un timer a tempo con avviso sonoro, aprire un sito web (ci provi direttamente in autonomia; se il browser blocca l\'apertura automatica compare comunque un link cliccabile), generare immagini originali da una descrizione, e generare brevi video originali da una descrizione (avvisa l\'utente che il video richiede più tempo di un\'immagine). Usa questi strumenti ogni volta che la richiesta lo richiede, senza chiedere conferma per operazioni semplici come data, ora, posizione o timer.';
+
+  // apre un URL tentando prima l'apertura diretta (autonoma); se il browser la blocca
+  // (tipico per i comandi vocali, che il browser non considera un "gesto" dell'utente),
+  // ripiega su un link cliccabile mostrato in chat
+  function openOrShowLink(url, label){
+    let win = null;
+    try{ win = window.open(url, '_blank', 'noopener'); }catch(e){ win = null; }
+    if(win){ return true; }
+    addLinkMsg(url, label);
+    return false;
+  }
+
+  const timers = [];
+  function startTimer(totalSeconds, label){
+    totalSeconds = Math.max(1, Math.round(totalSeconds));
+    const endsAt = Date.now() + totalSeconds*1000;
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg sys';
+    div.innerHTML = `<span class="who">SISTEMA</span><span class="bubble">⏱ Timer${label ? ' "'+label+'"' : ''} avviato: <b class="timer-count"></b></span>`;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+    const countEl = div.querySelector('.timer-count');
+    const tick = ()=>{
+      const remaining = Math.max(0, Math.round((endsAt - Date.now())/1000));
+      const m = Math.floor(remaining/60), s = remaining%60;
+      countEl.textContent = remaining>0 ? (m>0 ? `${m}:${s.toString().padStart(2,'0')}` : `${s}s`) : 'scaduto!';
+      if(remaining<=0){
+        clearInterval(interval);
+        onTimerDone(label);
+      }
+    };
+    const interval = setInterval(tick, 1000);
+    timers.push(interval);
+    tick();
+  }
+
+  function onTimerDone(label){
+    try{ if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]); }catch(e){}
+    beep();
+    const msg = 'Il timer' + (label ? ' "'+label+'"' : '') + ' è scaduto.';
+    addMsg('sys', '⏰ ' + msg);
+    speak(msg);
+  }
+
+  function beep(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 880;
+      o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime;
+      [0, 0.4, 0.8].forEach(off=>{
+        g.gain.setValueAtTime(0.0001, t+off);
+        g.gain.exponentialRampToValueAtTime(0.3, t+off+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+off+0.3);
+      });
+      o.start(t); o.stop(t+1.2);
+    }catch(e){}
+  }
+
+  async function executeTool(name, args){
+    if(name === 'get_current_datetime'){
+      const now = new Date();
+      return {
+        iso: now.toISOString(),
+        formattato: now.toLocaleString('it-IT', { dateStyle:'full', timeStyle:'short' })
+      };
+    }
+    if(name === 'get_user_location'){
+      if(!('geolocation' in navigator)) throw new Error('Geolocalizzazione non supportata da questo browser.');
+      const pos = await new Promise((resolve, reject)=>{
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout:10000, enableHighAccuracy:false });
+      }).catch(err=>{
+        if(err.code === 1) throw new Error('Permesso di geolocalizzazione negato dall\'utente.');
+        throw new Error('Impossibile ottenere la posizione: '+err.message);
+      });
+      const { latitude, longitude } = pos.coords;
+      try{
+        const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=it`);
+        const geo = await geoRes.json();
+        return {
+          citta: geo.city || geo.locality || null,
+          regione: geo.principalSubdivision || null,
+          nazione: geo.countryName || null,
+          latitudine: latitude, longitudine: longitude
+        };
+      }catch(e){
+        return { latitudine: latitude, longitudine: longitude };
+      }
+    }
+    if(name === 'open_website'){
+      const url = (args && args.url || '').trim();
+      if(!/^https?:\/\//i.test(url)) throw new Error('URL non valido, deve iniziare con http:// o https://');
+      const opened = openOrShowLink(url, args.label);
+      return { aperto_direttamente: opened, url };
+    }
+    if(name === 'set_timer'){
+      const seconds = Math.max(1, Math.round(Number(args.seconds) || 0));
+      startTimer(seconds, args.label);
+      return { avviato:true, seconds, label: args.label || null };
+    }
+    if(name === 'generate_image'){
+      const prompt = (args && args.prompt || '').trim();
+      if(!prompt) throw new Error('Descrizione mancante per generare l\'immagine.');
+      generateImage(prompt);
+      return { generata:true, prompt };
+    }
+    if(name === 'generate_video'){
+      const prompt = (args && args.prompt || '').trim();
+      if(!prompt) throw new Error('Descrizione mancante per generare il video.');
+      generateVideo(prompt);
+      return { generazione_avviata:true, prompt };
+    }
+    throw new Error('Strumento sconosciuto: '+name);
+  }
+
+  function addImageMsg(url, prompt){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg sys';
+    const who = document.createElement('span'); who.className='who'; who.textContent='SISTEMA';
+    const bubble = document.createElement('span'); bubble.className='bubble';
+    const caption = document.createElement('div');
+    caption.style.marginBottom = '6px';
+    caption.textContent = '🎨 ' + prompt;
+    const link = document.createElement('a');
+    link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    const img = document.createElement('img');
+    img.src = url; img.alt = prompt; img.className = 'gen-image'; img.loading = 'lazy';
+    link.appendChild(img);
+    bubble.appendChild(caption);
+    bubble.appendChild(link);
+    div.appendChild(who); div.appendChild(bubble);
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // generazione immagini gratuita, senza chiave API (servizio pubblico Pollinations.ai)
+  function generateImage(prompt){
+    const seed = Math.floor(Math.random()*1e9);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${seed}`;
+    addImageMsg(url, prompt);
+  }
+
+  function addVideoMsg(url, prompt){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg sys';
+    const who = document.createElement('span'); who.className='who'; who.textContent='SISTEMA';
+    const bubble = document.createElement('span'); bubble.className='bubble';
+    const caption = document.createElement('div');
+    caption.style.marginBottom = '6px';
+    caption.textContent = '🎬 ' + prompt + ' (generazione in corso, può richiedere fino a 1-2 minuti…)';
+    const video = document.createElement('video');
+    video.src = url; video.className = 'gen-video'; video.controls = true; video.playsInline = true; video.loop = true;
+    video.addEventListener('loadeddata', ()=>{ caption.textContent = '🎬 ' + prompt; });
+    video.addEventListener('error', ()=>{ caption.textContent = '🎬 ' + prompt + ' — generazione fallita o troppo lenta, riprova.'; });
+    bubble.appendChild(caption);
+    bubble.appendChild(video);
+    div.appendChild(who); div.appendChild(bubble);
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // generazione video gratuita, senza chiave API (stesso servizio pubblico Pollinations.ai)
+  function generateVideo(prompt){
+    const seed = Math.floor(Math.random()*1e9);
+    const url = `https://gen.pollinations.ai/video/${encodeURIComponent(prompt)}?seed=${seed}`;
+    addVideoMsg(url, prompt);
+  }
+
+
+  function addLinkMsg(url, label){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg sys';
+    const who = document.createElement('span');
+    who.className='who'; who.textContent='SISTEMA';
+    const bubble = document.createElement('span');
+    bubble.className='bubble';
+    const a = document.createElement('a');
+    a.href = url; a.target='_blank'; a.rel='noopener noreferrer';
+    a.className = 'link-chip';
+    a.textContent = '🔗 ' + (label || url);
+    bubble.appendChild(a);
+    div.appendChild(who); div.appendChild(bubble);
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  const history = [];
+  async function askGroq(userText){
+    if(!settings.groqApiKey){
+      throw new Error('Chiave API Groq mancante. Aggiungila dalle impostazioni (icona ingranaggio).');
+    }
+    history.push({role:'user', content:userText});
+    return await runGroqTurn();
+  }
+
+  async function runGroqTurn(depth){
+    depth = depth || 0;
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+settings.groqApiKey
+      },
+      body: JSON.stringify({
+        model: settings.groqModel || 'openai/gpt-oss-20b',
+        max_tokens:400,
+        messages: [{role:'system', content: settings.personality+'\n\n'+TOOL_INSTRUCTIONS}, ...history.slice(-20)],
+        tools: TOOLS,
+        tool_choice:'auto'
+      })
+    });
+    if(!res.ok){
+      let detail = '';
+      try{ const errBody = await res.json(); detail = errBody?.error?.message ? ' - '+errBody.error.message : ''; }catch(e){}
+      throw new Error('HTTP '+res.status+detail);
+    }
+    const data = await res.json();
+    const msg = data?.choices?.[0]?.message;
+    if(!msg) return '...';
+
+    if(msg.tool_calls && msg.tool_calls.length && depth < 3){
+      history.push({ role:'assistant', content: msg.content || '', tool_calls: msg.tool_calls });
+      for(const tc of msg.tool_calls){
+        let result;
+        try{
+          const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+          result = await executeTool(tc.function.name, args);
+        }catch(e){
+          result = { errore: e.message };
+        }
+        history.push({ role:'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+      }
+      return await runGroqTurn(depth+1);
+    }
+
+    const reply = msg.content || '...';
+    history.push({role:'assistant', content:reply});
+    return reply;
+  }
+
+  function speak(text){
+    return new Promise(resolve=>{
+      // sospende del tutto l'ascolto (non solo lo stop, anche il riavvio automatico) mentre parla,
+      // per evitare che il microfono raccolga la voce di JARVIS dall'altoparlante e la scambi per un comando
+      const wasListening = shouldRun;
+      if(wasListening){
+        shouldRun = false;
+        clearTimeout(restartTimer);
+        clearTimeout(silenceTimer);
+        transcriptBuffer = '';
+        try{ if(recognition) recognition.stop(); }catch(e){}
+      }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = settings.lang;
+      const voices = speechSynthesis.getVoices();
+      const v = voices.find(v=>v.voiceURI===settings.voiceURI);
+      if(v) utter.voice = v;
+      setState('speaking','risposta vocale…');
+      const resumeAndResolve = ()=>{
+        if(wasListening) setTimeout(()=>{ startListening(); }, 250);
+        resolve();
+      };
+      utter.onend = resumeAndResolve;
+      utter.onerror = resumeAndResolve;
+      speechSynthesis.speak(utter);
+    });
+  }
+
+  // ---------- Portale Skylanders (sperimentale, solo PC/desktop — richiede WebHID) ----------
+  // Stessa tecnica usata per il portale del gioco: WebHID (navigator.hid). Non disponibile su
+  // Android Chrome (l'API non esiste su mobile), quindi la sezione si disattiva da sola lì.
+  // Protocollo ricostruito da documentazione di reverse-engineering non ufficiale, non testato
+  // su hardware reale: il log mostra i byte grezzi ricevuti per poter correggere gli indirizzi.
+  const SKY_VID = 0x1430;
+  let portalDevice = null;
+
+  const DEFAULT_THEME = { accent:'#ff3227', dim:'#7a1810', a2:'#ffc72c', a3:'#ffdb70', bg:'#120806', panel:'#1c0f0a', panel2:'#241309', line:'#4a2410', text:'#ffe9c7', textDim:'#a67856' };
+  const ELEMENT_THEMES = {
+    fire:   { accent:'#ff6a00', dim:'#8a2e00', a2:'#ffb100', a3:'#ffd580', bg:'#170a02', panel:'#241005', panel2:'#331705', line:'#5c2c08', text:'#ffe6c2', textDim:'#b8834c' },
+    water:  { accent:'#29b6f6', dim:'#0f5470', a2:'#7fe3ff', a3:'#c8f4ff', bg:'#030f16', panel:'#071e29', panel2:'#0b2c3c', line:'#124a63', text:'#dff6ff', textDim:'#6fa8c2' },
+    air:    { accent:'#b9f3ff', dim:'#4f8a99', a2:'#eafffe', a3:'#ffffff', bg:'#061217', panel:'#0c2029', panel2:'#123039', line:'#2c5b66', text:'#eafcff', textDim:'#86b9c4' },
+    earth:  { accent:'#b98a3d', dim:'#5c421a', a2:'#d9b46a', a3:'#efd9a0', bg:'#120d05', panel:'#201709', panel2:'#2c1f0c', line:'#513a15', text:'#f2e3c2', textDim:'#b39865' },
+    life:   { accent:'#5fd45f', dim:'#245c24', a2:'#a6ec8a', a3:'#d6ffc2', bg:'#061206', panel:'#0c200c', panel2:'#123012', line:'#275c27', text:'#e5ffdf', textDim:'#86c485' },
+    magic:  { accent:'#c25bd6', dim:'#5c2166', a2:'#ff8ae0', a3:'#ffc2f0', bg:'#120616', panel:'#200c26', panel2:'#2c1233', line:'#5c2166', text:'#f6e0ff', textDim:'#b483c4' },
+    tech:   { accent:'#ffcf33', dim:'#7a5c10', a2:'#fff08a', a3:'#fff9cc', bg:'#171404', panel:'#262008', panel2:'#332b0b', line:'#5c4c14', text:'#fff3d0', textDim:'#c2ab6f' },
+    undead: { accent:'#8e6ac0', dim:'#362654', a2:'#b89aef', a3:'#d9c8ff', bg:'#0a0812', panel:'#140f22', panel2:'#1c1530', line:'#3a2a55', text:'#e6dbff', textDim:'#9080b3' }
+  };
+
+  // Database ID-figura → {nome, elemento}. Verificate qui solo un paio di voci di esempio
+  // (fonti pubbliche di reverse-engineering): Spyro e Gill Grunt. Per riconoscerne altre,
+  // posiziona la figura, leggi l'ID grezzo nel log del portale e aggiungi una riga qui sotto.
+  const SKYLANDER_DB = {
+    16: { name:'Spyro', element:'magic' },
+    14: { name:'Gill Grunt', element:'water' }
+  };
+
+  function applyElementTheme(key){
+    const t = ELEMENT_THEMES[key] || DEFAULT_THEME;
+    const r = document.documentElement.style;
+    r.setProperty('--accent', t.accent);
+    r.setProperty('--accent-dim', t.dim);
+    r.setProperty('--accent-2', t.a2);
+    r.setProperty('--accent-3', t.a3);
+    r.setProperty('--bg', t.bg);
+    r.setProperty('--bg-panel', t.panel);
+    r.setProperty('--bg-panel-2', t.panel2);
+    r.setProperty('--line', t.line);
+    r.setProperty('--text', t.text);
+    r.setProperty('--text-dim', t.textDim);
+  }
+  function resetPortalTheme(){
+    applyElementTheme('__default__');
+    settings.theme = 'default';
+    if(themeSel) themeSel.value = 'default';
+    saveSettings();
+  }
+
+  const portalLogEl = $('portalLog'), portalStatusEl = $('portalStatus'), portalConnectBtn = $('portalConnectBtn'), portalResetBtn = $('portalResetBtn'), portalSection = $('portalSection');
+
+  function portalLog(line){
+    if(!portalLogEl) return;
+    portalLogEl.textContent += line + '\n';
+    portalLogEl.scrollTop = portalLogEl.scrollHeight;
+  }
+  function setPortalStatus(text){ if(portalStatusEl) portalStatusEl.textContent = text; }
+
+  if(!('hid' in navigator)){
+    if(portalConnectBtn) portalConnectBtn.disabled = true;
+    setPortalStatus('WebHID non disponibile in questo browser (serve Chrome/Edge su PC).');
+  } else if(portalConnectBtn){
+    portalConnectBtn.onclick = connectPortal;
+  }
+  if(portalResetBtn) portalResetBtn.onclick = resetPortalTheme;
+
+  async function connectPortal(){
+    try{
+      const devices = await navigator.hid.requestDevice({ filters:[{ vendorId: SKY_VID }] });
+      if(!devices.length){ setPortalStatus('Nessun portale selezionato.'); return; }
+      portalDevice = devices[0];
+      if(!portalDevice.opened) await portalDevice.open();
+      portalDevice.addEventListener('inputreport', onPortalReport);
+      setPortalStatus('Connesso: '+(portalDevice.productName||'Portale')+' — attivazione…');
+      portalLog('Connesso, PID 0x'+portalDevice.productId.toString(16));
+      await sendPortalCommand('R');
+      await new Promise(res=>setTimeout(res,150));
+      await sendPortalCommand('A', [0x01]);
+      setPortalStatus('In ascolto: appoggia una figura sul portale.');
+    }catch(e){
+      setPortalStatus('Errore di connessione: '+e.message);
+      portalLog('Errore: '+e.message);
+    }
+  }
+
+  async function sendPortalCommand(cmdChar, extraBytes){
+    extraBytes = extraBytes || [];
+    const data = new Uint8Array(32);
+    data[0] = cmdChar.charCodeAt(0);
+    extraBytes.forEach((b,i)=>{ data[1+i] = b; });
+    try{
+      await portalDevice.sendReport(0, data);
+    }catch(e){
+      try{ await portalDevice.sendReport(1, data.slice(1)); }
+      catch(e2){ portalLog('Invio comando "'+cmdChar+'" fallito: '+e2.message); }
+    }
+  }
+
+  function onPortalReport(event){
+    const dv = event.data;
+    const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+    portalLog('« ' + Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join(' '));
+    const cmd = String.fromCharCode(bytes[0]);
+    if(cmd === 'S'){
+      // una nuova figura è stata posizionata: chiediamo il blocco 1 (contiene l'ID del personaggio)
+      sendPortalCommand('Q', [0x11]);
+    } else if(cmd === 'Q'){
+      const charId = bytes[2] | (bytes[3] << 8);
+      if(charId) handleSkylanderDetected(charId);
+    }
+  }
+
+  function handleSkylanderDetected(id){
+    const entry = SKYLANDER_DB[id];
+    if(entry){
+      applyElementTheme(entry.element);
+      settings.theme = entry.element;
+      if(themeSel) themeSel.value = entry.element;
+      saveSettings();
+      setPortalStatus(entry.name+' ('+entry.element+') rilevato — tema applicato.');
+      addMsg('sys', '🔮 Skylander riconosciuto: '+entry.name+' — elemento '+entry.element+'.');
+    } else {
+      setPortalStatus('Figura sconosciuta (ID '+id+') — non in tabella.');
+      addMsg('sys', '🔮 Rilevata una figura con ID '+id+', non ancora presente nella tabella SKYLANDER_DB nel codice: aggiungila per farla riconoscere.');
+    }
+  }
+
+  loadSettings();
+
+  // ---------- PWA: registra il service worker (necessario per l'installazione su Android browser) ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./sw.js').catch(()=>{ /* offline/non hostato: ignora */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
 
