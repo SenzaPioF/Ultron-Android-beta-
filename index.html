@@ -1641,7 +1641,7 @@
 
   loadSettings();
 
-  // ---------- PWA: registra il service worker (necessario per l'installazione su Android) ----------
+  // ---------- PWA: registra il service worker (necessario per l'installazione su Android browser) ----------
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{
       navigator.serviceWorker.register('./sw.js').catch(()=>{ /* offline/non hostato: ignora */ });
