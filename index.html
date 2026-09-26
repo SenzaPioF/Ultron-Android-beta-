@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>J.A.R.V.I.S. · Mark 85</title>
+<title>NEBULA · Voice Interface</title>
 <meta name="theme-color" content="#120806">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -110,7 +110,21 @@
     display:flex; align-items:center; justify-content:center;
     padding:26px 0 10px;
   }
-  #coreSvg{width:230px; height:230px; overflow:visible;}
+  /* ---------- ologramma reattore arc (in alto a sinistra, rotazione 3D via CSS) ---------- */
+  .arc-reactor-wrap{
+    position:absolute; top:64px; left:26px; width:56px; height:56px;
+    perspective:340px; z-index:5; opacity:.9; pointer-events:none;
+    animation:arcFlicker 3.2s ease-in-out infinite;
+  }
+  .arc-reactor-wrap svg{
+    width:100%; height:100%; display:block;
+    animation:arcSpin 7s linear infinite;
+    transform-style:preserve-3d;
+  }
+  @keyframes arcSpin{ from{ transform:rotateY(0deg); } to{ transform:rotateY(360deg); } }
+  @keyframes arcFlicker{ 0%,100%{ opacity:.78; } 45%{ opacity:1; } 60%{ opacity:.65; } 75%{ opacity:.95; } }
+  @media (max-width:380px){ .arc-reactor-wrap{ top:58px; left:18px; width:46px; height:46px; } }
+  #coreSvg{width:200px; height:200px; overflow:visible;}
   .ring{fill:none; stroke:var(--accent); opacity:.55;}
   .ring-outer{stroke-width:1;}
   .ring-mid{stroke-width:1.4; stroke-dasharray:2 6;}
@@ -171,6 +185,10 @@
   .gen-image{
     max-width:100%; border-radius:10px; border:1px solid var(--line);
     display:block; margin-top:4px;
+  }
+  .gen-video{
+    max-width:100%; border-radius:10px; border:1px solid var(--line);
+    display:block; margin-top:4px; background:#000;
   }
   .btn-secondary{
     background:var(--bg-panel-2); border:1px solid var(--accent-dim); color:var(--accent);
@@ -295,15 +313,43 @@
 
 <div class="frame">
   <header>
-    <div class="brand">J.A.R.V.I.S.<small>MARK 85 · VOICE INTERFACE</small></div>
+    <div class="brand">NEBULA<small>ARC REACTOR · VOICE INTERFACE</small></div>
     <div class="head-right">
-      <div class="mk-badge">MK·85</div>
+      <div class="mk-badge">N·01</div>
       <div class="status-pill" id="statusPill">INATTIVO</div>
       <div class="gear" id="gearBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       </div>
     </div>
   </header>
+
+  <div class="arc-reactor-wrap" id="arcReactorWrap" title="Reattore Arc">
+    <svg viewBox="0 0 100 100" class="arc-spin">
+      <defs>
+        <filter id="arcGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="1.8" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <g filter="url(#arcGlow)" fill="none">
+        <circle cx="50" cy="50" r="46" stroke="var(--accent-2)" stroke-width="2"/>
+        <circle cx="50" cy="50" r="36" stroke="var(--accent)" stroke-width="1.4"/>
+        <g stroke="var(--accent)" stroke-width="1.6">
+          <line x1="80" y1="50" x2="86" y2="50"/>
+          <line x1="71.2" y1="71.2" x2="75.5" y2="75.5"/>
+          <line x1="50" y1="80" x2="50" y2="86"/>
+          <line x1="28.8" y1="71.2" x2="24.5" y2="75.5"/>
+          <line x1="20" y1="50" x2="14" y2="50"/>
+          <line x1="28.8" y1="28.8" x2="24.5" y2="24.5"/>
+          <line x1="50" y1="20" x2="50" y2="14"/>
+          <line x1="71.2" y1="28.8" x2="75.5" y2="24.5"/>
+        </g>
+        <circle cx="50" cy="50" r="22" stroke="var(--accent-2)" stroke-width="1.8"/>
+        <circle cx="50" cy="50" r="12" fill="var(--accent-3)" stroke="none"/>
+        <circle cx="50" cy="50" r="5" fill="#fff" opacity=".85" stroke="none"/>
+      </g>
+    </svg>
+  </div>
 
   <div class="core-wrap">
     <svg id="coreSvg" viewBox="0 0 200 200">
@@ -349,7 +395,7 @@
       </g>
     </svg>
   </div>
-  <div class="core-label" id="coreLabel">dì "Jarvis" per iniziare</div>
+  <div class="core-label" id="coreLabel">dì "Nebula" per iniziare</div>
 
   <div class="log" id="log">
     <div class="log-empty" id="logEmpty">Il registro della conversazione comparirà qui.<br>Premi il microfono oppure attiva l'ascolto continuo dalle impostazioni.</div>
@@ -395,7 +441,7 @@
     </div>
     <div class="field">
       <label>Parola d'attivazione</label>
-      <input type="text" id="wakeWord" value="jarvis">
+      <input type="text" id="wakeWord" value="nebula">
     </div>
     <div class="field">
       <label>Lingua riconoscimento</label>
@@ -410,7 +456,7 @@
     </div>
     <div class="field">
       <label>Personalità / istruzioni</label>
-      <textarea id="personality">Sei J.A.R.V.I.S., l'assistente vocale personale dell'utente. Rispondi sempre in italiano, in modo colloquiale, con un tocco di arguzia british-butler ma senza esagerare. Sii conciso: 1-3 frasi, salvo quando l'utente chiede esplicitamente più dettagli.</textarea>
+      <textarea id="personality">Sei Nebula, l'assistente vocale personale dell'utente. Rispondi sempre in italiano, in modo colloquiale, con un tocco di arguzia british-butler ma senza esagerare. Sii conciso: 1-3 frasi, salvo quando l'utente chiede esplicitamente più dettagli.</textarea>
     </div>
     <div class="field">
       <label>Groq API key</label>
@@ -437,7 +483,8 @@
       <b>Timer:</b> di' o scrivi "metti un timer di 5 minuti" (funziona anche senza chiave API). Allo scadere sentirai un suono e (su mobile) una vibrazione — ma solo se l'app resta aperta in primo piano: i browser sospendono i timer quando l'app va in background per molto tempo, quindi non sostituisce una sveglia reale.<br><br>
       <b>Comandi rapidi senza IA:</b> "che ore sono", "che giorno è", "dove mi trovo", "apri youtube/google/whatsapp/...", "genera un'immagine di...", "metti un timer di..." funzionano subito in locale, senza bisogno della chiave API Groq. Per tutto il resto (conversazione, domande generiche, analisi di file) serve la chiave API.<br><br>
       <b>Tema colore:</b> cambialo manualmente in ogni momento dal menù "Tema colore" qui sopra, indipendentemente dal portale — la sfera centrale (l'occhio stilizzato) si adatta sempre ai colori del tema attivo.<br><br>
-      <b>Fotocamera:</b> tocca l'icona 📷 accanto al campo di testo per attivarla (usa la camera posteriore). Con la fotocamera attiva, ogni domanda che fai — a voce o scrivendo — viene inviata insieme al fotogramma inquadrato in quel momento a un modello Groq con supporto immagini (qwen/qwen3.6-27b, indipendente dal modello scelto sopra). Mentre è attiva, i comandi rapidi locali (ora, timer, ecc.) sono disattivati: tutto passa dall'analisi visiva. Tocca la ✕ sul riquadro video per spegnerla.
+      <b>Fotocamera:</b> tocca l'icona 📷 accanto al campo di testo per attivarla (usa la camera posteriore). Con la fotocamera attiva, ogni domanda che fai — a voce o scrivendo — viene inviata insieme al fotogramma inquadrato in quel momento a un modello Groq con supporto immagini (qwen/qwen3.6-27b, indipendente dal modello scelto sopra). Mentre è attiva, i comandi rapidi locali (ora, timer, ecc.) sono disattivati: tutto passa dall'analisi visiva. Tocca la ✕ sul riquadro video per spegnerla.<br><br>
+      <b>Generazione video:</b> di' o scrivi "genera un video di un drago che vola tra le nuvole" (gratuito, senza chiave API, stesso servizio usato per le immagini). La generazione richiede più tempo — anche 1-2 minuti — ed essendo un servizio gratuito può occasionalmente fallire: se succede, riprova.
     </div>
 
     <div class="field">
@@ -483,7 +530,7 @@
   const cameraBtn = $('cameraBtn'), cameraPreview = $('cameraPreview'), cameraVideo = $('cameraVideo'), cameraCloseBtn = $('cameraCloseBtn');
 
   let settings = {
-    alwaysOn:false, wakeRequired:true, wakeWord:'jarvis',
+    alwaysOn:false, wakeRequired:true, wakeWord:'nebula',
     lang:'it-IT', voiceURI:null, personality: personalityBox.value,
     groqApiKey:'', groqModel:'openai/gpt-oss-20b', theme:'default'
   };
@@ -1076,6 +1123,13 @@
       return `Ecco l'immagine di "${prompt}".`;
     }
 
+    const vidMatch = text.match(/^(?:genera|crea|fammi)\s+(?:un\s+)?video\s+(?:di|con|che (?:raffigura|mostra))\s+(.+)/);
+    if(vidMatch){
+      const prompt = vidMatch[1].trim();
+      generateVideo(prompt);
+      return `Sto generando il video di "${prompt}", ci vorrà un minuto o due.`;
+    }
+
     const timerMatch = text.match(/(?:metti|imposta|avvia|fai partire|crea)\s+(?:un\s+)?timer\s*(?:di|per)?\s*(\d+)\s*(secondi|secondo|minuti|minuto|ore|ora)(?:\s+(?:per|chiamato|con nome)\s+(.+))?/);
     if(timerMatch){
       const value = parseInt(timerMatch[1],10);
@@ -1167,10 +1221,24 @@
           required:['prompt']
         }
       }
+    },
+    {
+      type:'function',
+      function:{
+        name:'generate_video',
+        description:'Genera un breve video originale a partire da una descrizione testuale e lo mostra in chat. La generazione richiede più tempo di un\'immagine (fino a 1-2 minuti) ed è un servizio gratuito, quindi può occasionalmente fallire o essere lento.',
+        parameters:{
+          type:'object',
+          properties:{
+            prompt:{ type:'string', description:'Descrizione dettagliata (preferibilmente in inglese) di cosa deve mostrare il video' }
+          },
+          required:['prompt']
+        }
+      }
     }
   ];
 
-  const TOOL_INSTRUCTIONS = 'Hai a disposizione strumenti per: conoscere data/ora attuali, conoscere la posizione dell\'utente, avviare un timer a tempo con avviso sonoro, aprire un sito web (ci provi direttamente in autonomia; se il browser blocca l\'apertura automatica compare comunque un link cliccabile), e generare immagini originali da una descrizione. Usa questi strumenti ogni volta che la richiesta lo richiede, senza chiedere conferma per operazioni semplici come data, ora, posizione o timer.';
+  const TOOL_INSTRUCTIONS = 'Hai a disposizione strumenti per: conoscere data/ora attuali, conoscere la posizione dell\'utente, avviare un timer a tempo con avviso sonoro, aprire un sito web (ci provi direttamente in autonomia; se il browser blocca l\'apertura automatica compare comunque un link cliccabile), generare immagini originali da una descrizione, e generare brevi video originali da una descrizione (avvisa l\'utente che il video richiede più tempo di un\'immagine). Usa questi strumenti ogni volta che la richiesta lo richiede, senza chiedere conferma per operazioni semplici come data, ora, posizione o timer.';
 
   // apre un URL tentando prima l'apertura diretta (autonoma); se il browser la blocca
   // (tipico per i comandi vocali, che il browser non considera un "gesto" dell'utente),
@@ -1279,6 +1347,12 @@
       generateImage(prompt);
       return { generata:true, prompt };
     }
+    if(name === 'generate_video'){
+      const prompt = (args && args.prompt || '').trim();
+      if(!prompt) throw new Error('Descrizione mancante per generare il video.');
+      generateVideo(prompt);
+      return { generazione_avviata:true, prompt };
+    }
     throw new Error('Strumento sconosciuto: '+name);
   }
 
@@ -1308,6 +1382,33 @@
     const seed = Math.floor(Math.random()*1e9);
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${seed}`;
     addImageMsg(url, prompt);
+  }
+
+  function addVideoMsg(url, prompt){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const div = document.createElement('div');
+    div.className = 'msg sys';
+    const who = document.createElement('span'); who.className='who'; who.textContent='SISTEMA';
+    const bubble = document.createElement('span'); bubble.className='bubble';
+    const caption = document.createElement('div');
+    caption.style.marginBottom = '6px';
+    caption.textContent = '🎬 ' + prompt + ' (generazione in corso, può richiedere fino a 1-2 minuti…)';
+    const video = document.createElement('video');
+    video.src = url; video.className = 'gen-video'; video.controls = true; video.playsInline = true; video.loop = true;
+    video.addEventListener('loadeddata', ()=>{ caption.textContent = '🎬 ' + prompt; });
+    video.addEventListener('error', ()=>{ caption.textContent = '🎬 ' + prompt + ' — generazione fallita o troppo lenta, riprova.'; });
+    bubble.appendChild(caption);
+    bubble.appendChild(video);
+    div.appendChild(who); div.appendChild(bubble);
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // generazione video gratuita, senza chiave API (stesso servizio pubblico Pollinations.ai)
+  function generateVideo(prompt){
+    const seed = Math.floor(Math.random()*1e9);
+    const url = `https://gen.pollinations.ai/video/${encodeURIComponent(prompt)}?seed=${seed}`;
+    addVideoMsg(url, prompt);
   }
 
 
