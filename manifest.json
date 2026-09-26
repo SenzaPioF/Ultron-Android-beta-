@@ -1,7 +1,6 @@
 {
-  "name": "J.A.R.V.I.S. Mark 85",
-  "short_name": "JARVIS (Nebula)",
-  "description": "Assistente vocale personale in stile J.A.R.V.I.S. Mark 85",
+  "name": "Nebula · Voice Interface",
+  "short_name": "Nebula",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
